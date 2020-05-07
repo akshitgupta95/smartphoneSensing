@@ -153,6 +153,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
         else{
+            Toast.makeText(getApplicationContext(),"No AP found", Toast.LENGTH_SHORT).show();
 
         }
     }
