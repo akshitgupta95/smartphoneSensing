@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">smartphoneSensing</string>
+    <string name="app_name">Indoor Localisation</string>
+    <string name="fabtext">SCAN WIFI</string>
 </resources>
