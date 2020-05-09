@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -31,12 +32,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private WifiManager wifiManager;
 
     private final int MY_PERMISSIONS_ACCESS_FINE_LOCATION = 1;
+    //set BSSID here
     private String BSSID="18:D6:C7:79:14:EA";
     private ArrayList<Scan> aggregatedResults;
     private Handler handler;
-    private int i=0;
+    //number of times to check RSSI
+    private int iterationsOfWifiScan =0;
+    private final int iterationsLimit=20;
     private GraphView graphRSSI;
     private GraphView graphQuality;
+    private ProgressBar loadingBar;
 
 
     @Override
@@ -46,6 +51,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         FloatingActionButton fab = findViewById(R.id.fab);
         graphRSSI = (GraphView) findViewById(R.id.graphRSSI);
         graphQuality = (GraphView) findViewById(R.id.graphQuality);
+        loadingBar=(ProgressBar)findViewById(R.id.progress_loader);
         fab.setOnClickListener(this);
         aggregatedResults=new ArrayList<>();
 
@@ -55,53 +61,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         switch(v.getId()){
             case R.id.fab:
+                //check permissions
                 if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_ACCESS_FINE_LOCATION);
                 }
-                i=0;
-                handler=new Handler();
-                graphRSSI.setVisibility(View.INVISIBLE);
-                graphQuality.setVisibility(View.INVISIBLE);
-
-                 Runnable runnableCode = new Runnable() {
-                    @Override
-                    public void run() {
-                        // Do something here on the main thread
-                        i++;
-                        Log.d("Handlers", "Called on main thread");
-                        startScan();
-                        handler.postDelayed(this, 1000);
-                        if(i==20) {
-                            handler.removeCallbacks(this);
-                            ArrayList<DataPoint> dpList=new ArrayList<>();
-                            for(int i=0;i<aggregatedResults.size();i++){
-                                DataPoint dp=new DataPoint(i,aggregatedResults.get(i).getRSSi());
-                                dpList.add(dp);
-                            }
-                            DataPoint[] dpArray= dpList.toArray(new DataPoint[0]);
-                            LineGraphSeries < DataPoint > series = new LineGraphSeries<>(dpArray);
-                            graphRSSI.setVisibility(View.VISIBLE);
-                            graphRSSI.addSeries(series);
-                            graphRSSI.setTitle("RSSI");
-
-                            ArrayList<DataPoint> dpQualityList=new ArrayList<>();
-                            for(int i=0;i<aggregatedResults.size();i++){
-                                DataPoint dp=new DataPoint(i,aggregatedResults.get(i).getLevel());
-                                dpQualityList.add(dp);
-                            }
-                            DataPoint[] dpQualityArray= dpQualityList.toArray(new DataPoint[0]);
-                            LineGraphSeries < DataPoint > series2 = new LineGraphSeries<>(dpQualityArray);
-                            graphQuality.setVisibility(View.VISIBLE);
-                            graphQuality.addSeries(series2);
-                            graphQuality.setTitle("Quality");
-                        }
-                        // Repeat this the same runnable code block again another 2 seconds
-                        // 'this' is referencing the Runnable object
-
-                    }
-                };
-                 handler.post(runnableCode);
-                Toast.makeText(getApplicationContext()," Beginning Scan",Toast.LENGTH_SHORT).show();
+                beginWifiScanAndShowGraph();
 
                 break;
             default: break;
@@ -110,8 +74,61 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
-    private void startScan() {
+    private void beginWifiScanAndShowGraph() {
 
+        iterationsOfWifiScan=0; //reset for next scan
+        handler=new Handler();
+        //view handling
+        graphRSSI.setVisibility(View.INVISIBLE);
+        graphQuality.setVisibility(View.INVISIBLE);
+        loadingBar.setVisibility(View.VISIBLE);
+
+        Runnable runnableCode = new Runnable() {
+           @Override
+           public void run() {
+               // Do something here on the main thread
+               iterationsOfWifiScan++;
+               Log.d("Handlers", "Called on main thread");
+               startScan();
+               handler.postDelayed(this, 1000);
+               loadingBar.setProgress(iterationsOfWifiScan*100/iterationsLimit);
+               if(iterationsOfWifiScan ==iterationsLimit) {
+                   //show the data
+
+                   handler.removeCallbacks(this);
+                   ArrayList<DataPoint> dpList=new ArrayList<>();
+                   for(int i=0;i<aggregatedResults.size();i++){
+                       DataPoint dp=new DataPoint(i,aggregatedResults.get(i).getRSSi());
+                       dpList.add(dp);
+                   }
+                   DataPoint[] dpArray= dpList.toArray(new DataPoint[0]);
+                   LineGraphSeries< DataPoint > series = new LineGraphSeries<>(dpArray);
+                   graphRSSI.setVisibility(View.VISIBLE);
+                   graphRSSI.addSeries(series);
+                   graphRSSI.setTitle("RSSI");
+
+                   ArrayList<DataPoint> dpQualityList=new ArrayList<>();
+                   for(int i=0;i<aggregatedResults.size();i++){
+                       DataPoint dp=new DataPoint(i,aggregatedResults.get(i).getLevel());
+                       dpQualityList.add(dp);
+                   }
+                   DataPoint[] dpQualityArray= dpQualityList.toArray(new DataPoint[0]);
+                   LineGraphSeries < DataPoint > series2 = new LineGraphSeries<>(dpQualityArray);
+                   graphQuality.setVisibility(View.VISIBLE);
+                   graphQuality.addSeries(series2);
+                   graphQuality.setTitle("Quality");
+                   loadingBar.setVisibility(View.INVISIBLE);
+                   //TODO: make PMF and save in DB
+                   //TODO: move this to seperate fragments
+               }
+
+           }
+       };
+        handler.post(runnableCode);
+        Toast.makeText(getApplicationContext()," Beginning Scan",Toast.LENGTH_SHORT).show();
+    }
+
+    private void startScan() {
 
         wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         BroadcastReceiver wifiScanReceiver = new BroadcastReceiver() {
