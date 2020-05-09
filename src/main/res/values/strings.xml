@@ -2,4 +2,9 @@
     <string name="app_name">Example2</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    
+    <string-array name="locations">
+        <item>A</item>
+        <item>B</item>
+    </string-array>
 </resources>
