@@ -54,7 +54,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         loadingBar=(ProgressBar)findViewById(R.id.progress_loader);
         fab.setOnClickListener(this);
         aggregatedResults=new ArrayList<>();
-
     }
 
     @Override
@@ -118,7 +117,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                    graphQuality.addSeries(series2);
                    graphQuality.setTitle("Quality");
                    loadingBar.setVisibility(View.INVISIBLE);
-                   //TODO: make PMF and save in DB
                    //TODO: move this to seperate fragments
                }
 
