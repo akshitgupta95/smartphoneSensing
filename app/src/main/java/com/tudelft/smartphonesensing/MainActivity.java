@@ -16,6 +16,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.room.Room;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.jjoe64.graphview.GraphView;
@@ -31,7 +32,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private final int MY_PERMISSIONS_ACCESS_FINE_LOCATION = 1;
     private String BSSID="18:D6:C7:79:14:EA";
-    private ArrayList<ScanResultDAO> aggregatedResults;
+    private ArrayList<Scan> aggregatedResults;
     private Handler handler;
     private int i=0;
     private GraphView graphRSSI;
@@ -74,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             handler.removeCallbacks(this);
                             ArrayList<DataPoint> dpList=new ArrayList<>();
                             for(int i=0;i<aggregatedResults.size();i++){
-                                DataPoint dp=new DataPoint(i,aggregatedResults.get(i).getRSSI());
+                                DataPoint dp=new DataPoint(i,aggregatedResults.get(i).getRSSi());
                                 dpList.add(dp);
                             }
                             DataPoint[] dpArray= dpList.toArray(new DataPoint[0]);
@@ -142,11 +143,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void scanSuccess() {
         List<ScanResult> results = wifiManager.getScanResults();
 
+        // Get the database
+        // Get database
+        final AppDatabase db = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, "production")
+                .allowMainThreadQueries()
+                .build();
+
         if(results.size()!=0) {
             for (ScanResult scanResult : results) {
                 if(scanResult.BSSID.equalsIgnoreCase(BSSID))
                 {
-                    ScanResultDAO result=new ScanResultDAO((scanResult.level),wifiManager.calculateSignalLevel(scanResult.level, 10));
+                    String MAC = scanResult.BSSID;
+                    String SSID = scanResult.SSID;
+                    int RSSi = scanResult.level;
+                    int level = wifiManager.calculateSignalLevel(scanResult.level, 10);
+                    int freq = scanResult.frequency;
+                    // TODO: Change this to the user choosing which location they are in for training
+                    String loc = "A";
+                    long time = scanResult.timestamp;
+                    Scan result = new Scan(MAC, SSID, RSSi, level, freq, loc, time);
+                    db.scanDAO().InsertAll(result);
+                    Log.v("DB", "Added scan: " + SSID + " " + MAC + " " + RSSi + " " +
+                            level + " " + freq + " " + loc + " " + time);
                     aggregatedResults.add(result);
                 }
 
