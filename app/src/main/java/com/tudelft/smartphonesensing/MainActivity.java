@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private final int MY_PERMISSIONS_ACCESS_FINE_LOCATION = 1;
     //set BSSID here
-    private String BSSID="18:D6:C7:79:14:EA";
+    private String BSSID="50:46:5d:cc:d7:b0";
     private ArrayList<Scan> aggregatedResults;
     private Handler handler;
     //number of times to check RSSI
@@ -166,20 +166,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if(results.size()!=0) {
             for (ScanResult scanResult : results) {
+                Log.v("Wifi", scanResult.toString());
+                String MAC = scanResult.BSSID;
+                String SSID = scanResult.SSID;
+                int RSSi = scanResult.level;
+                int level = wifiManager.calculateSignalLevel(scanResult.level, 10);
+                int freq = scanResult.frequency;
+                // TODO: Change this to the user choosing which location they are in for training
+                String loc = "A";
+                long time = scanResult.timestamp;
+                Scan result = new Scan(MAC, SSID, RSSi, level, freq, loc, time);
+                db.scanDAO().InsertAll(result);
+                Log.v("DB", "Added scan: " + SSID + " " + MAC + " " + RSSi + " " +
+                        level + " " + freq + " " + loc + " " + time);
                 if(scanResult.BSSID.equalsIgnoreCase(BSSID))
                 {
-                    String MAC = scanResult.BSSID;
-                    String SSID = scanResult.SSID;
-                    int RSSi = scanResult.level;
-                    int level = wifiManager.calculateSignalLevel(scanResult.level, 10);
-                    int freq = scanResult.frequency;
-                    // TODO: Change this to the user choosing which location they are in for training
-                    String loc = "A";
-                    long time = scanResult.timestamp;
-                    Scan result = new Scan(MAC, SSID, RSSi, level, freq, loc, time);
-                    db.scanDAO().InsertAll(result);
-                    Log.v("DB", "Added scan: " + SSID + " " + MAC + " " + RSSi + " " +
-                            level + " " + freq + " " + loc + " " + time);
                     aggregatedResults.add(result);
                 }
 
