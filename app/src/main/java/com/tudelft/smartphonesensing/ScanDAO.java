@@ -13,4 +13,12 @@ public interface ScanDAO {
 
     @Insert
     void InsertAll(Scan... scanresults);
+
+    //Get all locations in the database
+    @Query("SELECT DISTINCT loc FROM Scan")
+    List<String> getAllLocations();
+
+    // Get all scans from a certain location
+    @Query("SELECT * FROM Scan WHERE loc = :loc")
+    List<Scan> getAllScansLoc(String loc);
 }
