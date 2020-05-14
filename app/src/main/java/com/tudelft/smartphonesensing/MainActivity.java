@@ -11,10 +11,14 @@ import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.room.Room;
@@ -42,6 +46,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private GraphView graphRSSI;
     private GraphView graphQuality;
     private ProgressBar loadingBar;
+    private String cell="A";
+    boolean stop = false;
 
 
     @Override
@@ -54,6 +60,45 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         loadingBar=(ProgressBar)findViewById(R.id.progress_loader);
         fab.setOnClickListener(this);
         aggregatedResults=new ArrayList<>();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.loc_pick_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.btn_A:
+                this.cell = "A";
+                Toast.makeText(getApplicationContext(),"Train location set to A", Toast.LENGTH_SHORT).show();
+                return true;
+
+            case R.id.btn_B:
+                this.cell = "B";
+                Toast.makeText(getApplicationContext(),"Train location set to B", Toast.LENGTH_SHORT).show();
+                return true;
+
+            case R.id.btn_C:
+                this.cell = "C";
+                Toast.makeText(getApplicationContext(),"Train location set to C", Toast.LENGTH_SHORT).show();
+                return true;
+
+            case R.id.btn_D:
+                this.cell = "D";
+                Toast.makeText(getApplicationContext(),"Train location set to D", Toast.LENGTH_SHORT).show();
+                return true;
+
+            case R.id.btn_predict:
+                // Intent to Predict page.
+                stop = true;
+                startActivity(new Intent(MainActivity.this, PredictActivity.class));
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -118,6 +163,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                    graphQuality.setTitle("Quality");
                    loadingBar.setVisibility(View.INVISIBLE);
                    //TODO: move this to seperate fragments
+
+               }
+               if (!stop) {
+                   handler.removeCallbacks(this);
                }
 
            }
@@ -166,24 +215,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if(results.size()!=0) {
             for (ScanResult scanResult : results) {
-                Log.v("Wifi", scanResult.toString());
                 String MAC = scanResult.BSSID;
                 String SSID = scanResult.SSID;
                 int RSSi = scanResult.level;
                 int level = wifiManager.calculateSignalLevel(scanResult.level, 10);
                 int freq = scanResult.frequency;
                 // TODO: Change this to the user choosing which location they are in for training
-                String loc = "A";
+                String loc = this.cell;
                 long time = scanResult.timestamp;
                 Scan result = new Scan(MAC, SSID, RSSi, level, freq, loc, time);
                 db.scanDAO().InsertAll(result);
                 Log.v("DB", "Added scan: " + SSID + " " + MAC + " " + RSSi + " " +
                         level + " " + freq + " " + loc + " " + time);
+
+                // Only plot the selected MAC address
                 if(scanResult.BSSID.equalsIgnoreCase(BSSID))
                 {
                     aggregatedResults.add(result);
                 }
-
             }
         }
         else{

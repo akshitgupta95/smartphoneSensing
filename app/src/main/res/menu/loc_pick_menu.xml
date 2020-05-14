@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item android:id="@+id/btn_choose_loc"
+        android:icon="@drawable/ic_edit_loc"
+        android:title="location Menu"
+        app:showAsAction="ifRoom" >
+
+        <menu>
+            <item android:id="@+id/btn_A"
+                android:title="A"
+                app:showAsAction="never" />
+
+            <item android:id="@+id/btn_B"
+                android:title="B"
+                app:showAsAction="never" />
+
+            <item android:id="@+id/btn_C"
+                android:title="C"
+                app:showAsAction="never" />
+
+            <item android:id="@+id/btn_D"
+                android:title="D"
+                app:showAsAction="never" />
+        </menu>
+    </item>
+
+
+
+    <item android:id="@+id/btn_predict"
+        android:icon="@drawable/ic_my_location"
+        android:title="Predict"
+        app:showAsAction="ifRoom" />
+
+</menu>
