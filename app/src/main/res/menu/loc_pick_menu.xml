@@ -5,7 +5,6 @@
     <item android:id="@+id/btn_choose_loc"
         android:icon="@drawable/ic_edit_loc"
         android:title="location Menu"
-        android:visibility="gone"
         app:showAsAction="ifRoom" >
 
         <menu>

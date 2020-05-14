@@ -21,6 +21,7 @@ public class MainActivity extends AppCompatActivity  {
     final Fragment fragment3 = new TestFragment();
     final FragmentManager fm = getSupportFragmentManager();
     Fragment active = fragment1;
+    public String cell = "C1";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,8 +66,38 @@ public class MainActivity extends AppCompatActivity  {
         return true;
     }
 
+    // TODO: dynamically generate buttons when choosing cells!
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.btn_C1:
+                this.cell = "C1";
+                Toast.makeText(getApplicationContext(),"Train location set to Cell 1", Toast.LENGTH_SHORT).show();
+                return true;
 
-//    @Override
+            case R.id.btn_C2:
+                this.cell = "C2";
+                Toast.makeText(getApplicationContext(),"Train location set to Cell 2", Toast.LENGTH_SHORT).show();
+                return true;
+
+            case R.id.btn_C3:
+                this.cell = "C3";
+                Toast.makeText(getApplicationContext(),"Train location set to Cell 3", Toast.LENGTH_SHORT).show();
+                return true;
+
+            case R.id.btn_C4:
+                this.cell = "C4";
+                Toast.makeText(getApplicationContext(),"Train location set to Cell 4", Toast.LENGTH_SHORT).show();
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    public String getCell() {
+        return cell;
+    }
+
+    //    @Override
 //    public void onClick(View v) {
 //        switch(v.getId()){
 //            case R.id.fab:

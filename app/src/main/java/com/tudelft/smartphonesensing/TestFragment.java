@@ -1,9 +1,11 @@
 package com.tudelft.smartphonesensing;
 
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
@@ -15,15 +17,19 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.List;
 
-public class TestFragment extends Fragment {
+public class TestFragment extends Fragment implements View.OnClickListener {
 
     private WifiManager wifiManager;
     private List<ScanResult> results;
     private Bayes bayes;
+    private boolean buildTable = true;
 
 
     @Override
@@ -34,12 +40,33 @@ public class TestFragment extends Fragment {
         return inflater.inflate(R.layout.test_fragment, container, false);
     }
 
-
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        bayes = new Bayes(getActivity());
-        bayes.createTable();
-        beginWifiScanAndLocate();
+        FloatingActionButton pred = (FloatingActionButton)getView().findViewById(R.id.pred);
+        pred.setOnClickListener(this);
+    }
+
+    public void onClick(View v) {
+        switch(v.getId()){
+            case R.id.pred:
+                bayes = new Bayes(getActivity());
+                // TODO: only create table when database is updated so prediction is faster
+                if(buildTable) {
+                    bayes.createTable();
+                    buildTable = false;
+                }
+                beginWifiScanAndLocate();
+
+                break;
+            default: break;
+        }
+    }
+
+    // Remove this it rebuilds the table after the app is opened again.
+    @Override
+    public void onResume() {
+        super.onResume();
+        buildTable = true;
     }
 
     private void beginWifiScanAndLocate() {

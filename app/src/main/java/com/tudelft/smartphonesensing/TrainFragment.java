@@ -17,6 +17,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
@@ -49,7 +50,7 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
     private GraphView graphRSSI;
     private GraphView graphQuality;
     private ProgressBar loadingBar;
-    private String cell="1";
+//    private String cell="1";
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -185,7 +186,7 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
                 int level = wifiManager.calculateSignalLevel(scanResult.level, 10);
                 int freq = scanResult.frequency;
                 // TODO: Change this to the user choosing which location they are in for training
-                String loc = this.cell;
+                String loc = ((MainActivity)getActivity()).getCell();
                 long time = scanResult.timestamp;
                 Scan result = new Scan(MAC, SSID, RSSi, level, freq, loc, time);
                 db.scanDAO().InsertAll(result);
