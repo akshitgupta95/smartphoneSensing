@@ -12,13 +12,10 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -50,6 +47,8 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
     private GraphView graphRSSI;
     private GraphView graphQuality;
     private ProgressBar loadingBar;
+    private String cellName;
+    private Context mContext;
 //    private String cell="1";
 
     @Override
@@ -57,25 +56,35 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
 
+
+        Bundle bundle = this.getArguments();
+        if (bundle != null) {
+            cellName = bundle.get("cellName").toString();
+        }
         return inflater.inflate(R.layout.train_fragment, container, false);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         FloatingActionButton fab = (FloatingActionButton)getView().findViewById(R.id.fab);
+        TextView cellName=(TextView) getView().findViewById(R.id.cellName_tv);
+        cellName.setText("Scan\n"+"Cell "+this.cellName);
         graphRSSI = (GraphView) getView().findViewById(R.id.graphRSSI);
         graphQuality = (GraphView) getView().findViewById(R.id.graphQuality);
         loadingBar=(ProgressBar)getView().findViewById(R.id.progress_loader);
         fab.setOnClickListener(this);
         aggregatedResults=new ArrayList<>();
+
+
     }
+
 
     @Override
     public void onClick(View v) {
         switch(v.getId()){
             case R.id.fab:
                 //check permissions
-                if (ActivityCompat.checkSelfPermission(getActivity().getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                     ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_ACCESS_FINE_LOCATION);
                 }
                 beginWifiScanAndShowGraph();
@@ -137,12 +146,12 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
             }
         };
         handler.post(runnableCode);
-        Toast.makeText(getActivity().getApplicationContext()," Beginning Scan",Toast.LENGTH_SHORT).show();
+        Toast.makeText(mContext," Beginning Scan",Toast.LENGTH_SHORT).show();
     }
 
     private void startScan() {
 
-        wifiManager = (WifiManager) getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        wifiManager = (WifiManager) mContext.getSystemService(Context.WIFI_SERVICE);
         BroadcastReceiver wifiScanReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context c, Intent intent) {
@@ -158,7 +167,7 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
         };
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
-        getActivity().getApplicationContext().registerReceiver(wifiScanReceiver, intentFilter);
+        mContext.registerReceiver(wifiScanReceiver, intentFilter);
 
         boolean success = wifiManager.startScan();
         if (!success) {
@@ -174,7 +183,7 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
 
         // Get the database
         // Get database
-        final AppDatabase db = Room.databaseBuilder(getActivity(), AppDatabase.class, "production")
+        final AppDatabase db = Room.databaseBuilder(mContext, AppDatabase.class, "production")
                 .allowMainThreadQueries()
                 .build();
 
@@ -186,12 +195,12 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
                 int level = wifiManager.calculateSignalLevel(scanResult.level, 10);
                 int freq = scanResult.frequency;
                 // TODO: Change this to the user choosing which location they are in for training
-                String loc = ((MainActivity)getActivity()).getCell();
+
                 long time = scanResult.timestamp;
-                Scan result = new Scan(MAC, SSID, RSSi, level, freq, loc, time);
+                Scan result = new Scan(MAC, SSID, RSSi, level, freq, cellName, time);
                 db.scanDAO().InsertAll(result);
                 Log.v("DB", "Added scan: " + SSID + " " + MAC + " " + RSSi + " " +
-                        level + " " + freq + " " + loc + " " + time);
+                        level + " " + freq + " " + cellName + " " + time);
                 if(scanResult.BSSID.equalsIgnoreCase(BSSID)) {
                     aggregatedResults.add(result);
                 }
@@ -199,7 +208,7 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
             }
         }
         else{
-            Toast.makeText(getActivity(),"No AP found", Toast.LENGTH_SHORT).show();
+            Toast.makeText(mContext,"No AP found", Toast.LENGTH_SHORT).show();
 
         }
     }
@@ -207,8 +216,16 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
     private void scanFailure() {
         // handle failure: new scan did NOT succeed
         // consider using old scan results: these are the OLD results!
-        Toast.makeText(getActivity(),"failed to scan",Toast.LENGTH_SHORT).show();
+        Toast.makeText(mContext,"failed to scan",Toast.LENGTH_SHORT).show();
         List<ScanResult> results = wifiManager.getScanResults();
 
     }
+
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        mContext=context;
+    }
+
+
 }
