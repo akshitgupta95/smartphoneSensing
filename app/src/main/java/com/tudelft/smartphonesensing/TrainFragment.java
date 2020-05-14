@@ -12,6 +12,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
@@ -46,6 +49,7 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
     private GraphView graphRSSI;
     private GraphView graphQuality;
     private ProgressBar loadingBar;
+    private String cell="1";
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -175,20 +179,19 @@ public class TrainFragment extends Fragment implements View.OnClickListener {
 
         if(results.size()!=0) {
             for (ScanResult scanResult : results) {
-                if(scanResult.BSSID.equalsIgnoreCase(BSSID))
-                {
-                    String MAC = scanResult.BSSID;
-                    String SSID = scanResult.SSID;
-                    int RSSi = scanResult.level;
-                    int level = wifiManager.calculateSignalLevel(scanResult.level, 10);
-                    int freq = scanResult.frequency;
-                    // TODO: Change this to the user choosing which location they are in for training
-                    String loc = "A";
-                    long time = scanResult.timestamp;
-                    Scan result = new Scan(MAC, SSID, RSSi, level, freq, loc, time);
-                    db.scanDAO().InsertAll(result);
-                    Log.v("DB", "Added scan: " + SSID + " " + MAC + " " + RSSi + " " +
-                            level + " " + freq + " " + loc + " " + time);
+                String MAC = scanResult.BSSID;
+                String SSID = scanResult.SSID;
+                int RSSi = scanResult.level;
+                int level = wifiManager.calculateSignalLevel(scanResult.level, 10);
+                int freq = scanResult.frequency;
+                // TODO: Change this to the user choosing which location they are in for training
+                String loc = this.cell;
+                long time = scanResult.timestamp;
+                Scan result = new Scan(MAC, SSID, RSSi, level, freq, loc, time);
+                db.scanDAO().InsertAll(result);
+                Log.v("DB", "Added scan: " + SSID + " " + MAC + " " + RSSi + " " +
+                        level + " " + freq + " " + loc + " " + time);
+                if(scanResult.BSSID.equalsIgnoreCase(BSSID)) {
                     aggregatedResults.add(result);
                 }
 

@@ -1,13 +1,28 @@
 package com.tudelft.smartphonesensing;
 
+import android.content.Context;
+import android.net.wifi.ScanResult;
+import android.os.Bundle;
+import android.util.Log;
+import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.room.Room;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Bayes extends AppCompatActivity {
+public class Bayes {
+
+    Context c;
+    public List<MACTable> MacTables = new ArrayList<MACTable>();
+
+    public Bayes(Context context) {
+        c = context;
+    }
 
     // MACTable class
     public class MACTable {
@@ -20,21 +35,17 @@ public class Bayes extends AppCompatActivity {
         }
     }
 
-    public List<MACTable> MacTables;
-
     public void createTable() {
-        final AppDatabase db = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, "production")
+        final AppDatabase db = Room.databaseBuilder(c.getApplicationContext(), AppDatabase.class, "production")
                 .allowMainThreadQueries()
                 .build();
 
         // First get all locations
         List<String> locations = db.scanDAO().getAllLocations();
-
         // Make a table for every location/cell
         for(String location : locations){
             // query all scanResults for this location
             List<Scan> scans = db.scanDAO().getAllScansLoc(location);
-
             // Make new table with initialized recordlist
             MACTable macTable = new MACTable(location, new HashMap<String, Map<Integer, Integer>>());
 
@@ -52,13 +63,13 @@ public class Bayes extends AppCompatActivity {
                     // If the current RSSi has been found before update frequency (CONTAINS COLUMN)
                     if(freqsRSSi.containsKey(curRSSi)){
                         freqsRSSi.put(curRSSi, freqsRSSi.get(curRSSi) + 1);
-                    // Else add new RSSi with frequency 1 (NEW COLUMN)
+                        // Else add new RSSi with frequency 1 (NEW COLUMN)
                     } else {
                         freqsRSSi.put(curRSSi, 1);
                     }
                     macTable.table.put(curMAC, freqsRSSi);
 
-                // Else put a new MAC record in the MAC table. (NEW ROW)
+                    // Else put a new MAC record in the MAC table. (NEW ROW)
                 } else {
                     // Put new entry in with frequency 1 for the RSSi (NEW COLUMN)
                     Map<Integer, Integer> newRSSi = new HashMap<Integer, Integer>();
@@ -67,14 +78,14 @@ public class Bayes extends AppCompatActivity {
                 }
             }
 
-            // Add to list of tables
             MacTables.add(macTable);
+
         }
 
     }
 
-    public String predictLocation(List<Scan> scans){
-        final AppDatabase db = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, "production")
+    public String predictLocation(List<ScanResult> scanResults){
+        final AppDatabase db = Room.databaseBuilder(c.getApplicationContext(), AppDatabase.class, "production")
                 .allowMainThreadQueries()
                 .build();
 
@@ -92,10 +103,10 @@ public class Bayes extends AppCompatActivity {
 
 
         // For every scan provided
-        for(Scan scan : scans) {
+        for(ScanResult scan : scanResults) {
             // get MAC and RSSi
-            String curMAC = scan.getMAC();
-            int curRSSi = scan.getRSSi();
+            String curMAC = scan.BSSID;
+            int curRSSi = scan.level;
 
             // Check all the macTables of every location
             for(MACTable macTable : candidateList){
@@ -107,19 +118,23 @@ public class Bayes extends AppCompatActivity {
                     // Check if the RSSi value exists (GET COLUMN)
                     if(freqsRSSi.containsKey(curRSSi)) {
                         // Get probability P(RSSi_i|MAC, location)
-                        Double prob = freqsRSSi.get(curRSSi).doubleValue() / freqsRSSi.size();
+                        int sum = 0;
+                        for(int freq : freqsRSSi.values()){
+                            sum+=freq;
+                        }
+                        Double prob = freqsRSSi.get(curRSSi).doubleValue() / sum;
 
                         // Set P(location|MAC)
                         ProbLocWifi.put(macTable.location, ProbLocWifi.get(macTable.location) * prob);
                     } else {
                         // Table gets removed from candidates and probability set to 0
-                        ProbLocWifi.put(macTable.location, 0.0);
-                        candidateList.remove(macTable);
+                        ProbLocWifi.put(macTable.location, ProbLocWifi.get(macTable.location) * 0.9);
+//                        candidateList.remove(macTable);
                     }
                 } else {
                     // Table gets removed from candidates
-                    ProbLocWifi.put(macTable.location, 0.0);
-                    candidateList.remove(macTable);
+                    ProbLocWifi.put(macTable.location, ProbLocWifi.get(macTable.location) * 0.9);
+//                    candidateList.remove(macTable);
                 }
             }
         }
@@ -135,6 +150,7 @@ public class Bayes extends AppCompatActivity {
             }
         }
 
+        Toast.makeText(c.getApplicationContext(),"Probability :" + maxProb,Toast.LENGTH_SHORT).show();
         // Return the location
         return curLocation;
     }
