@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Bayes {
 
@@ -31,6 +32,53 @@ public class Bayes {
         }
     }
 
+    static public class MacLocProbability {
+        double mean;
+        double stddev;
+        int nsamples;
+        List<Scan> scans;
+
+        public double getMean() {
+            return mean;
+        }
+
+        public double getStdDev() {
+            return stddev;
+        }
+
+        public List<Scan> getScans() {
+            return scans;
+        }
+
+        public double sampleGaussian(double x) {
+            return (1 / (stddev * Math.sqrt(2 * Math.PI))) * Math.exp(-(x - mean) * (x - mean) / (2 * stddev * stddev));
+        }
+
+        public MacLocProbability(List<Scan> allScansAtLoc, String mac) {
+            scans = allScansAtLoc.stream()
+                    .filter(s -> s.getMAC().equalsIgnoreCase(mac))
+                    .collect(Collectors.toList());
+            if (scans.size() < 2) {
+                mean = 0;
+                stddev = 0;
+                nsamples = 0;
+            } else {
+                nsamples = scans.size();
+                double levelsum = 0;
+                for (Scan scan : scans) {
+                    levelsum += scan.getLevel();
+                }
+                mean = levelsum / nsamples;
+                double leveldiffsum = 0;
+                for (Scan scan : scans) {
+                    double diff = scan.getLevel() - mean;
+                    leveldiffsum += diff * diff;
+                }
+                stddev = Math.sqrt(leveldiffsum / (nsamples - 1));
+            }
+        }
+    }
+
     public void createTable() {
         final AppDatabase db = Room.databaseBuilder(c.getApplicationContext(), AppDatabase.class, "production")
                 .allowMainThreadQueries()
@@ -39,14 +87,14 @@ public class Bayes {
         // First get all locations
         List<String> locations = db.scanDAO().getAllLocations(); //O(N) //TODO: break the monolith O(1), or make loc primary key: O(logN)
         // Make a table for every location/cell
-        for(String location : locations){
+        for (String location : locations) {
             // query all scanResults for this location
             List<Scan> scans = db.scanDAO().getAllScansLoc(location); //O(N)//TODO: important, bad db schema, loc primary key:O(logN), seperated tables on location O(1)
             // Make new table with initialized recordlist
             MACTable macTable = new MACTable(location, new HashMap<String, Map<Integer, Integer>>());
 
             // for every scanned Wifi beacon on that location, fill the table
-            for(Scan scan : scans) {
+            for (Scan scan : scans) {
                 // get MAC and RSSi of current scan
                 String curMAC = scan.getMAC();
                 int curRSSi = scan.getRSSi();
@@ -57,7 +105,7 @@ public class Bayes {
                     Map<Integer, Integer> freqsRSSi = macTable.table.get(curMAC);
 
                     // If the current RSSi has been found before update frequency (CONTAINS COLUMN)
-                    if(freqsRSSi.containsKey(curRSSi)){
+                    if (freqsRSSi.containsKey(curRSSi)) {
                         freqsRSSi.put(curRSSi, freqsRSSi.get(curRSSi) + 1);
                         // Else add new RSSi with frequency 1 (NEW COLUMN)
                     } else {
@@ -80,7 +128,7 @@ public class Bayes {
 
     }
 
-    public String predictLocation(List<ScanResult> scanResults){
+    public String predictLocation(List<ScanResult> scanResults) {
         final AppDatabase db = Room.databaseBuilder(c.getApplicationContext(), AppDatabase.class, "production")
                 .allowMainThreadQueries()
                 .build();//TODO: Make singleton// Move to model class
@@ -90,7 +138,7 @@ public class Bayes {
 
         // Make a probability hashmap for P(loc|wifi)
         Map<String, Double> ProbLocWifi = new HashMap<String, Double>();
-        for(String location : locations) {
+        for (String location : locations) {
             ProbLocWifi.put(location, 1.0);
         }
 
@@ -99,24 +147,24 @@ public class Bayes {
 
 
         // For every scan provided
-        for(ScanResult scan : scanResults) {
+        for (ScanResult scan : scanResults) {
             // get MAC and RSSi
             String curMAC = scan.BSSID;
             int curRSSi = scan.level;
 
             // Check all the macTables of every location
-            for(MACTable macTable : candidateList){  //O(N) TODO: looping over almost the entire DB, not needed See lecture 4 for each prediction
+            for (MACTable macTable : candidateList) {  //O(N) TODO: looping over almost the entire DB, not needed See lecture 4 for each prediction
                 // If the scanned MAC exists in this location table (GET ROW)
-                if(macTable.table.containsKey(curMAC)) {
+                if (macTable.table.containsKey(curMAC)) {
                     // Get the RSSis for the MAC (GET COLUMNS)
                     Map<Integer, Integer> freqsRSSi = macTable.table.get(curMAC);
 
                     // Check if the RSSi value exists (GET COLUMN)
-                    if(freqsRSSi.containsKey(curRSSi)) {
+                    if (freqsRSSi.containsKey(curRSSi)) {
                         // Get probability P(RSSi_i|MAC, location)
                         int sum = 0; //TODO: precompute while storing or making table, store prob values instead of RSSi freq
-                        for(int freq : freqsRSSi.values()){
-                            sum+=freq;
+                        for (int freq : freqsRSSi.values()) {
+                            sum += freq;
                         }
                         Double prob = freqsRSSi.get(curRSSi).doubleValue() / sum;
 
@@ -125,12 +173,12 @@ public class Bayes {
                     } else {
                         // Table gets removed from candidates and probability set to 0
                         ProbLocWifi.put(macTable.location, ProbLocWifi.get(macTable.location) * 0.9);
-//                        candidateList.remove(macTable);
+                        // candidateList.remove(macTable);
                     }
                 } else {
                     // Table gets removed from candidates
                     ProbLocWifi.put(macTable.location, ProbLocWifi.get(macTable.location) * 0.9);
-//                    candidateList.remove(macTable);
+                    // candidateList.remove(macTable);
                 }
             }
         }
@@ -140,13 +188,13 @@ public class Bayes {
         Double maxProb = 0.0;
 
         for (Map.Entry<String, Double> entry : ProbLocWifi.entrySet()) {
-            if(entry.getValue() > maxProb){
+            if (entry.getValue() > maxProb) {
                 curLocation = entry.getKey();
                 maxProb = entry.getValue();
             }
         }
 
-        Toast.makeText(c.getApplicationContext(),"Probability :" + maxProb,Toast.LENGTH_SHORT).show();
+        Toast.makeText(c.getApplicationContext(), "Probability :" + maxProb, Toast.LENGTH_SHORT).show();
         // Return the location
         return curLocation;
     }

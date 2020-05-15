@@ -10,6 +10,7 @@ import android.widget.AdapterView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
@@ -35,7 +36,7 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
         public void onClick(View view) {
             Bundle bundle = new Bundle();
             bundle.putString("cellName",textView.getText().toString());
-            TrainFragment fragment=new TrainFragment();
+            Fragment fragment=new CellFragment();
             fragment.setArguments(bundle);
             AppCompatActivity activity = (AppCompatActivity) mContext;
             activity.getSupportFragmentManager().beginTransaction().replace(R.id.main_container, fragment).addToBackStack(null).commit();

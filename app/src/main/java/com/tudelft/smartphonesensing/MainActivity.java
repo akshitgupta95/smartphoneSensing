@@ -12,7 +12,7 @@ import androidx.fragment.app.FragmentManager;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-public class MainActivity extends AppCompatActivity  {
+public class MainActivity extends AppCompatActivity {
 
     final Fragment fragment1 = new ManageFragment();
     final Fragment fragment2 = new TestFragment();
@@ -46,6 +46,8 @@ public class MainActivity extends AppCompatActivity  {
                     fm.beginTransaction().hide(active).show(fragment2).commit();
                     active = fragment2;
                     return true;
+
+
             }
             return false;
         }
@@ -57,5 +59,4 @@ public class MainActivity extends AppCompatActivity  {
         inflater.inflate(R.menu.loc_pick_menu, menu);
         return true;
     }
-
 }
