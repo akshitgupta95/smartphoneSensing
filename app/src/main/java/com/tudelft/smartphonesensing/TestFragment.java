@@ -33,8 +33,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
 
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         // Inflate the layout for this fragment
 
         return inflater.inflate(R.layout.test_fragment, container, false);
@@ -42,23 +41,24 @@ public class TestFragment extends Fragment implements View.OnClickListener {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        FloatingActionButton pred = (FloatingActionButton)getView().findViewById(R.id.pred);
+        FloatingActionButton pred = (FloatingActionButton) getView().findViewById(R.id.pred);
         pred.setOnClickListener(this);
     }
 
     public void onClick(View v) {
-        switch(v.getId()){
+        switch (v.getId()) {
             case R.id.pred:
                 bayes = new Bayes(getActivity());
                 // TODO: only create table when database is updated so prediction is faster
-                if(buildTable) {
+                if (buildTable) {
                     bayes.createTable();
                     buildTable = false;
                 }
                 beginWifiScanAndLocate();
 
                 break;
-            default: break;
+            default:
+                break;
         }
     }
 
@@ -70,40 +70,17 @@ public class TestFragment extends Fragment implements View.OnClickListener {
     }
 
     private void beginWifiScanAndLocate() {
-        Toast.makeText(getActivity().getApplicationContext(),"Scanning Wifi...",Toast.LENGTH_SHORT).show();
+        Toast.makeText(getActivity().getApplicationContext(), "Scanning Wifi...", Toast.LENGTH_SHORT).show();
         startScan();
-        Toast.makeText(getActivity().getApplicationContext(),"Predicting location...",Toast.LENGTH_SHORT).show();
+        Toast.makeText(getActivity().getApplicationContext(), "Predicting location...", Toast.LENGTH_SHORT).show();
     }
 
     private void startScan() {
-        wifiManager = (WifiManager) getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        BroadcastReceiver wifiScanReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context c, Intent intent) {
-                boolean success = intent.getBooleanExtra(
-                        WifiManager.EXTRA_RESULTS_UPDATED, false);
-                if (success) {
-                    scanSuccess();
-                } else {
-                    // scan failure handling
-                    scanFailure();
-                }
-            }
-        };
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
-        getActivity().getApplicationContext().registerReceiver(wifiScanReceiver, intentFilter);
-
-        boolean success = wifiManager.startScan();
-        if (!success) {
-            // scan failure handling
-            scanFailure();
-        }
+        WifiScanner scanner = new WifiScanner(getContext(), 1, this::scanSuccess, null, this::scanFailure);
     }
-    private void scanSuccess() {
-        List<ScanResult> results = wifiManager.getScanResults();
 
-        if(results.size()!=0) {
+    private void scanSuccess(List<ScanResult> results) {
+        if (results.size() != 0) {
             String location = bayes.predictLocation(results);
             TextView locationText = (TextView) getView().findViewById(R.id.text_loc);
             locationText.setText(location);
@@ -113,7 +90,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
     private void scanFailure() {
         // handle failure: new scan did NOT succeed
         // consider using old scan results: these are the OLD results!
-        Toast.makeText(getActivity().getApplicationContext(),"failed to scan",Toast.LENGTH_SHORT).show();
+        Toast.makeText(getActivity().getApplicationContext(), "failed to scan", Toast.LENGTH_SHORT).show();
         this.results = wifiManager.getScanResults();
     }
 }
