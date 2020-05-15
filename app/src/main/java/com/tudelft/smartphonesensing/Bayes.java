@@ -2,14 +2,10 @@ package com.tudelft.smartphonesensing;
 
 import android.content.Context;
 import android.net.wifi.ScanResult;
-import android.os.Bundle;
-import android.util.Log;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.room.Room;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,7 +23,7 @@ public class Bayes {
     // MACTable class
     public class MACTable {
         private String location;
-        private Map<String, Map<Integer, Integer>> table;
+        private Map<String, Map<Integer, Integer>> table;// This nested  hashmap has too much data, avoid hash collisions
 
         public MACTable(String location, Map<String, Map<Integer, Integer>> table) {
             this.location = location;
@@ -41,11 +37,11 @@ public class Bayes {
                 .build();
 
         // First get all locations
-        List<String> locations = db.scanDAO().getAllLocations();
+        List<String> locations = db.scanDAO().getAllLocations(); //O(N) //TODO: break the monolith O(1), or make loc primary key: O(logN)
         // Make a table for every location/cell
         for(String location : locations){
             // query all scanResults for this location
-            List<Scan> scans = db.scanDAO().getAllScansLoc(location);
+            List<Scan> scans = db.scanDAO().getAllScansLoc(location); //O(N)//TODO: important, bad db schema, loc primary key:O(logN), seperated tables on location O(1)
             // Make new table with initialized recordlist
             MACTable macTable = new MACTable(location, new HashMap<String, Map<Integer, Integer>>());
 
@@ -87,10 +83,10 @@ public class Bayes {
     public String predictLocation(List<ScanResult> scanResults){
         final AppDatabase db = Room.databaseBuilder(c.getApplicationContext(), AppDatabase.class, "production")
                 .allowMainThreadQueries()
-                .build();
+                .build();//TODO: Make singleton// Move to model class
 
         // First get all locations from the database
-        List<String> locations = db.scanDAO().getAllLocations();
+        List<String> locations = db.scanDAO().getAllLocations(); //O(N)
 
         // Make a probability hashmap for P(loc|wifi)
         Map<String, Double> ProbLocWifi = new HashMap<String, Double>();
@@ -109,7 +105,7 @@ public class Bayes {
             int curRSSi = scan.level;
 
             // Check all the macTables of every location
-            for(MACTable macTable : candidateList){
+            for(MACTable macTable : candidateList){  //O(N) TODO: looping over almost the entire DB, not needed See lecture 4 for each prediction
                 // If the scanned MAC exists in this location table (GET ROW)
                 if(macTable.table.containsKey(curMAC)) {
                     // Get the RSSis for the MAC (GET COLUMNS)
@@ -118,7 +114,7 @@ public class Bayes {
                     // Check if the RSSi value exists (GET COLUMN)
                     if(freqsRSSi.containsKey(curRSSi)) {
                         // Get probability P(RSSi_i|MAC, location)
-                        int sum = 0;
+                        int sum = 0; //TODO: precompute while storing or making table, store prob values instead of RSSi freq
                         for(int freq : freqsRSSi.values()){
                             sum+=freq;
                         }
