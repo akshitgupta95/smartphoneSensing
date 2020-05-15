@@ -43,14 +43,14 @@ public class Bayes {
         // First get all locations
         List<String> locations = db.scanDAO().getAllLocations();
         // Make a table for every location/cell
-        for(String location : locations){
+        for (String location : locations) {
             // query all scanResults for this location
             List<Scan> scans = db.scanDAO().getAllScansLoc(location);
             // Make new table with initialized recordlist
             MACTable macTable = new MACTable(location, new HashMap<String, Map<Integer, Integer>>());
 
             // for every scanned Wifi beacon on that location, fill the table
-            for(Scan scan : scans) {
+            for (Scan scan : scans) {
                 // get MAC and RSSi of current scan
                 String curMAC = scan.getMAC();
                 int curRSSi = scan.getRSSi();
@@ -61,7 +61,7 @@ public class Bayes {
                     Map<Integer, Integer> freqsRSSi = macTable.table.get(curMAC);
 
                     // If the current RSSi has been found before update frequency (CONTAINS COLUMN)
-                    if(freqsRSSi.containsKey(curRSSi)){
+                    if (freqsRSSi.containsKey(curRSSi)) {
                         freqsRSSi.put(curRSSi, freqsRSSi.get(curRSSi) + 1);
                         // Else add new RSSi with frequency 1 (NEW COLUMN)
                     } else {
@@ -84,7 +84,7 @@ public class Bayes {
 
     }
 
-    public String predictLocation(List<ScanResult> scanResults){
+    public String predictLocation(List<ScanResult> scanResults) {
         final AppDatabase db = Room.databaseBuilder(c.getApplicationContext(), AppDatabase.class, "production")
                 .allowMainThreadQueries()
                 .build();
@@ -94,7 +94,7 @@ public class Bayes {
 
         // Make a probability hashmap for P(loc|wifi)
         Map<String, Double> ProbLocWifi = new HashMap<String, Double>();
-        for(String location : locations) {
+        for (String location : locations) {
             ProbLocWifi.put(location, 1.0);
         }
 
@@ -103,24 +103,24 @@ public class Bayes {
 
 
         // For every scan provided
-        for(ScanResult scan : scanResults) {
+        for (ScanResult scan : scanResults) {
             // get MAC and RSSi
             String curMAC = scan.BSSID;
             int curRSSi = scan.level;
 
             // Check all the macTables of every location
-            for(MACTable macTable : candidateList){
+            for (MACTable macTable : candidateList) {
                 // If the scanned MAC exists in this location table (GET ROW)
-                if(macTable.table.containsKey(curMAC)) {
+                if (macTable.table.containsKey(curMAC)) {
                     // Get the RSSis for the MAC (GET COLUMNS)
                     Map<Integer, Integer> freqsRSSi = macTable.table.get(curMAC);
 
                     // Check if the RSSi value exists (GET COLUMN)
-                    if(freqsRSSi.containsKey(curRSSi)) {
+                    if (freqsRSSi.containsKey(curRSSi)) {
                         // Get probability P(RSSi_i|MAC, location)
                         int sum = 0;
-                        for(int freq : freqsRSSi.values()){
-                            sum+=freq;
+                        for (int freq : freqsRSSi.values()) {
+                            sum += freq;
                         }
                         Double prob = freqsRSSi.get(curRSSi).doubleValue() / sum;
 
@@ -144,13 +144,13 @@ public class Bayes {
         Double maxProb = 0.0;
 
         for (Map.Entry<String, Double> entry : ProbLocWifi.entrySet()) {
-            if(entry.getValue() > maxProb){
+            if (entry.getValue() > maxProb) {
                 curLocation = entry.getKey();
                 maxProb = entry.getValue();
             }
         }
 
-        Toast.makeText(c.getApplicationContext(),"Probability :" + maxProb,Toast.LENGTH_SHORT).show();
+        Toast.makeText(c.getApplicationContext(), "Probability :" + maxProb, Toast.LENGTH_SHORT).show();
         // Return the location
         return curLocation;
     }

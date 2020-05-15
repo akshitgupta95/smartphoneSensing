@@ -12,6 +12,11 @@
         android:icon="@android:drawable/ic_input_add"
         android:title="Collect Data"/>
     <item
+        android:id="@+id/navigation_cell"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_crop"
+        android:title="Cell Info" />
+    <item
         android:id="@+id/navigation_test"
         android:enabled="true"
         android:icon="@android:drawable/ic_menu_mylocation"
