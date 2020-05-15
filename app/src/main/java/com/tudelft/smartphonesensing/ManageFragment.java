@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.room.Room;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -23,8 +24,9 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
     private RecyclerView.Adapter mAdapter;
     private RecyclerView.LayoutManager layoutManager;
     private FloatingActionButton addCellFab;
-    ArrayList<String> data=new ArrayList<>();
-    int startNaming=65;
+    ArrayList<String> data = new ArrayList<>();
+    int startNaming = 65;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -35,20 +37,27 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 
+        final AppDatabase db = Room.databaseBuilder(getContext().getApplicationContext(), AppDatabase.class, "production")
+                .allowMainThreadQueries()
+                .build();
+        data.clear();
 
-        recyclerView=getView().findViewById(R.id.cells_rv);
-        addCellFab=getView().findViewById(R.id.addCell);
+        //TODO currently cells without data are lost when reopening the app, maybe second table with all locations?
+        data.addAll(db.scanDAO().getAllLocations());
+
+        recyclerView = getView().findViewById(R.id.cells_rv);
+        addCellFab = getView().findViewById(R.id.addCell);
         addCellFab.setOnClickListener(this);
         setupRv();
 
 
     }
 
-    private void setupRv(){
+    private void setupRv() {
         layoutManager = new LinearLayoutManager(getActivity().getApplicationContext());
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setHasFixedSize(true);
-        mAdapter = new CellsAdapter(data,this);
+        mAdapter = new CellsAdapter(data, this);
         recyclerView.setAdapter(mAdapter);
 
 
@@ -67,7 +76,7 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
 
     private void addCell() {
         //TODO: generate a popup asking user for name of cell
-        data.add(Character.toString((char)startNaming));
+        data.add(Character.toString((char) startNaming));
         startNaming++;
         mAdapter.notifyDataSetChanged();
     }
