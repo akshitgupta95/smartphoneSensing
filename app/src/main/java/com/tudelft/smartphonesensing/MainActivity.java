@@ -17,7 +17,6 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 public class MainActivity extends AppCompatActivity {
 
     final Fragment fragment1 = new ManageFragment();
-    final Fragment fragment2 = new TrainFragment();
     final Fragment fragment3 = new TestFragment();
     final Fragment fragment4 = new CellFragment();
     final FragmentManager fm = getSupportFragmentManager();
@@ -31,7 +30,6 @@ public class MainActivity extends AppCompatActivity {
         BottomNavigationView navView = findViewById(R.id.bottomNavigationView);
         fm.beginTransaction().add(R.id.main_container, fragment4, "4").hide(fragment4).commit();
         fm.beginTransaction().add(R.id.main_container, fragment3, "3").hide(fragment3).commit();
-        fm.beginTransaction().add(R.id.main_container, fragment2, "2").hide(fragment2).commit();
         fm.beginTransaction().add(R.id.main_container, fragment1, "1").commit();
         navView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
     }
@@ -45,11 +43,6 @@ public class MainActivity extends AppCompatActivity {
                 case R.id.navigation_manage:
                     fm.beginTransaction().hide(active).show(fragment1).commit();
                     active = fragment1;
-                    return true;
-
-                case R.id.navigation_train:
-                    fm.beginTransaction().hide(active).show(fragment2).commit();
-                    active = fragment2;
                     return true;
 
                 case R.id.navigation_test:
