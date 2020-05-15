@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Bayes {
 
@@ -32,6 +33,53 @@ public class Bayes {
         public MACTable(String location, Map<String, Map<Integer, Integer>> table) {
             this.location = location;
             this.table = table;
+        }
+    }
+
+    static public class MacLocProbability {
+        double mean;
+        double stddev;
+        int nsamples;
+        List<Scan> scans;
+
+        public double getMean() {
+            return mean;
+        }
+
+        public double getStdDev() {
+            return stddev;
+        }
+
+        public List<Scan> getScans() {
+            return scans;
+        }
+
+        public double sampleGaussian(double x) {
+            return (1 / (stddev * Math.sqrt(2 * Math.PI))) * Math.exp(-(x - mean) * (x - mean) / (2 * stddev * stddev));
+        }
+
+        public MacLocProbability(List<Scan> allScansAtLoc, String mac) {
+            scans = allScansAtLoc.stream()
+                    .filter(s -> s.getMAC().equalsIgnoreCase(mac))
+                    .collect(Collectors.toList());
+            if (scans.size() < 2) {
+                mean = 0;
+                stddev = 0;
+                nsamples = 0;
+            } else {
+                nsamples = scans.size();
+                double levelsum = 0;
+                for (Scan scan : scans) {
+                    levelsum += scan.getLevel();
+                }
+                mean = levelsum / nsamples;
+                double leveldiffsum = 0;
+                for (Scan scan : scans) {
+                    double diff = scan.getLevel() - mean;
+                    leveldiffsum += diff * diff;
+                }
+                stddev = Math.sqrt(leveldiffsum / (nsamples - 1));
+            }
         }
     }
 
