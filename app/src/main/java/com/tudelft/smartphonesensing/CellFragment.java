@@ -106,8 +106,15 @@ public class CellFragment extends Fragment {
         rssiGraph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
     }
 
+    //TODO make sensible code path for this
+    private String initialCell;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        Bundle bundle = this.getArguments();
+        if (bundle != null) {
+            initialCell = bundle.get("cellName").toString();
+        }
         return inflater.inflate(R.layout.cell_fragment, container, false);
     }
 
@@ -176,5 +183,9 @@ public class CellFragment extends Fragment {
 
         this.getView().findViewById(R.id.cellbutton0).setOnClickListener(v -> setCell("cell0"));
         this.getView().findViewById(R.id.cellbutton1).setOnClickListener(v -> setCell("cell1"));
+
+
+        //TODO move this elsewhere
+        setCell(initialCell);
     }
 }
