@@ -7,11 +7,11 @@
     tools:context=".MainActivity">
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigationView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:id="@+id/bottomNavigationView"
-        app:menu="@menu/bottom_navigation_menu"
-        android:layout_alignParentBottom="true"/>
+        android:layout_alignParentBottom="true"
+        app:menu="@menu/bottom_navigation_menu" />
 
     <FrameLayout
         android:id="@+id/main_container"
@@ -24,69 +24,69 @@
 
     </FrameLayout>
 
-<!--    <androidx.viewpager.widget.ViewPager-->
-<!--        xmlns:android="http://schemas.android.com/apk/res/android"-->
-<!--        android:id="@+id/pager"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="match_parent" />-->
+    <!--    <androidx.viewpager.widget.ViewPager-->
+    <!--        xmlns:android="http://schemas.android.com/apk/res/android"-->
+    <!--        android:id="@+id/pager"-->
+    <!--        android:layout_width="match_parent"-->
+    <!--        android:layout_height="match_parent" />-->
 
-<!--    <ProgressBar-->
-<!--        android:id="@+id/progress_loader"-->
-<!--        style="@android:style/Widget.Material.ProgressBar.Horizontal"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="match_parent"-->
-<!--        android:layout_centerInParent="true"-->
-<!--        android:visibility="invisible"-->
-<!--        android:progress="0"-->
-<!--        android:padding="20dp"/>-->
+    <!--    <ProgressBar-->
+    <!--        android:id="@+id/progress_loader"-->
+    <!--        style="@android:style/Widget.Material.ProgressBar.Horizontal"-->
+    <!--        android:layout_width="match_parent"-->
+    <!--        android:layout_height="match_parent"-->
+    <!--        android:layout_centerInParent="true"-->
+    <!--        android:visibility="invisible"-->
+    <!--        android:progress="0"-->
+    <!--        android:padding="20dp"/>-->
 
-<!--    <com.jjoe64.graphview.GraphView-->
-<!--        android:layout_width = "match_parent"-->
-<!--        android:layout_height = "250dip"-->
-<!--        android:id = "@+id/graphRSSI"-->
-<!--        android:visibility="invisible"-->
-<!--        android:layout_alignParentTop="true"-->
-<!--        android:layout_centerVertical="true"-->
-<!--        android:layout_margin="20dp"-->
+    <!--    <com.jjoe64.graphview.GraphView-->
+    <!--        android:layout_width = "match_parent"-->
+    <!--        android:layout_height = "250dip"-->
+    <!--        android:id = "@+id/graphRSSI"-->
+    <!--        android:visibility="invisible"-->
+    <!--        android:layout_alignParentTop="true"-->
+    <!--        android:layout_centerVertical="true"-->
+    <!--        android:layout_margin="20dp"-->
 
-<!--        />-->
+    <!--        />-->
 
-<!--    <com.jjoe64.graphview.GraphView-->
-<!--        android:layout_width = "match_parent"-->
-<!--        android:layout_height = "250dip"-->
-<!--        android:id = "@+id/graphQuality"-->
-<!--        android:visibility="invisible"-->
-<!--        android:layout_below="@+id/graphRSSI"-->
-<!--        android:layout_centerVertical="true"-->
-<!--        android:layout_margin="20dp"/>-->
+    <!--    <com.jjoe64.graphview.GraphView-->
+    <!--        android:layout_width = "match_parent"-->
+    <!--        android:layout_height = "250dip"-->
+    <!--        android:id = "@+id/graphQuality"-->
+    <!--        android:visibility="invisible"-->
+    <!--        android:layout_below="@+id/graphRSSI"-->
+    <!--        android:layout_centerVertical="true"-->
+    <!--        android:layout_margin="20dp"/>-->
 
 
-<!--    <FrameLayout-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:layout_alignParentBottom="true"-->
-<!--        android:layout_centerHorizontal="true">-->
+    <!--    <FrameLayout-->
+    <!--        android:layout_width="wrap_content"-->
+    <!--        android:layout_height="wrap_content"-->
+    <!--        android:layout_alignParentBottom="true"-->
+    <!--        android:layout_centerHorizontal="true">-->
 
-<!--    <com.google.android.material.floatingactionbutton.FloatingActionButton-->
-<!--        android:id="@+id/fab"-->
-<!--        android:layout_width="60dp"-->
-<!--        android:layout_height="60dp"-->
-<!--        android:foregroundGravity="center"-->
-<!--        android:layout_margin="16dp"-->
-<!--        android:text="@string/fabtext"-->
-<!--        android:src="@android:color/transparent"-->
-<!--        app:layout_constraintTop_toBottomOf="@+id/info"-->
-<!--        tools:layout_editor_absoluteX="107dp"-->
-<!--        />-->
-<!--        <TextView android:layout_height="wrap_content"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:text="SCAN"-->
-<!--            android:layout_gravity="center"-->
-<!--            android:elevation="20dp"-->
-<!--            android:textSize="18dp"-->
-<!--            android:textColor="#fff"-->
-<!--            />-->
+    <!--    <com.google.android.material.floatingactionbutton.FloatingActionButton-->
+    <!--        android:id="@+id/fab"-->
+    <!--        android:layout_width="60dp"-->
+    <!--        android:layout_height="60dp"-->
+    <!--        android:foregroundGravity="center"-->
+    <!--        android:layout_margin="16dp"-->
+    <!--        android:text="@string/fabtext"-->
+    <!--        android:src="@android:color/transparent"-->
+    <!--        app:layout_constraintTop_toBottomOf="@+id/info"-->
+    <!--        tools:layout_editor_absoluteX="107dp"-->
+    <!--        />-->
+    <!--        <TextView android:layout_height="wrap_content"-->
+    <!--            android:layout_width="wrap_content"-->
+    <!--            android:text="SCAN"-->
+    <!--            android:layout_gravity="center"-->
+    <!--            android:elevation="20dp"-->
+    <!--            android:textSize="18dp"-->
+    <!--            android:textColor="#fff"-->
+    <!--            />-->
 
-<!--    </FrameLayout>-->
+    <!--    </FrameLayout>-->
 
 </RelativeLayout>

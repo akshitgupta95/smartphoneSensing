@@ -25,9 +25,10 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
         // each data item is just a string in this case
         private TextView textView;
         private Context mContext;
+
         public CellsViewHolder(View v) {
             super(v);
-            mContext=v.getContext();
+            mContext = v.getContext();
             v.setOnClickListener(this);
             textView = v.findViewById(R.id.cell_tv);
         }
@@ -35,8 +36,8 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
         @Override
         public void onClick(View view) {
             Bundle bundle = new Bundle();
-            bundle.putString("cellName",textView.getText().toString());
-            Fragment fragment=new CellFragment();
+            bundle.putString("cellName", textView.getText().toString());
+            Fragment fragment = new CellFragment();
             fragment.setArguments(bundle);
             AppCompatActivity activity = (AppCompatActivity) mContext;
             activity.getSupportFragmentManager().beginTransaction().replace(R.id.main_container, fragment).addToBackStack(null).commit();
@@ -45,7 +46,7 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
     }
 
     // Provide a suitable constructor (depends on the kind of dataset)
-    public CellsAdapter(ArrayList<String> data,AdapterView.OnItemClickListener onItemClickListener) {
+    public CellsAdapter(ArrayList<String> data, AdapterView.OnItemClickListener onItemClickListener) {
         this.data = data;
         this.onItemClickListener = onItemClickListener;
     }
@@ -53,7 +54,7 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
     // Create new views (invoked by the layout manager)
     @Override
     public CellsAdapter.CellsViewHolder onCreateViewHolder(ViewGroup parent,
-                                                     int viewType) {
+                                                           int viewType) {
         // create a new view
         View v = (View) LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_cells_rv, parent, false);
@@ -67,12 +68,9 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
     public void onBindViewHolder(CellsViewHolder holder, int position) {
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
-        final String cellName=data.get(position);
+        final String cellName = data.get(position);
         holder.textView.setText(cellName);
-
-
     }
-
 
 
     // Return the size of your dataset (invoked by the layout manager)

@@ -165,7 +165,6 @@ public class CellFragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-
         numMacsText = this.getView().findViewById(R.id.numMacs);
         numSamplesText = this.getView().findViewById(R.id.numSamples);
         cellnameText = this.getView().findViewById(R.id.cellname);
@@ -183,7 +182,6 @@ public class CellFragment extends Fragment {
 
         this.getView().findViewById(R.id.cellbutton0).setOnClickListener(v -> setCell("cell0"));
         this.getView().findViewById(R.id.cellbutton1).setOnClickListener(v -> setCell("cell1"));
-
 
         //TODO move this elsewhere
         setCell(initialCell);

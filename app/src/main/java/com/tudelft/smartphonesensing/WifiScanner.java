@@ -28,6 +28,7 @@ public class WifiScanner {
     private Runnable errorCallback;
     private Consumer<List<List<ScanResult>>> finishedCallback;
 
+    //state
     private int numScans = 0;
     private List<List<ScanResult>> allResults = new ArrayList<>();
     private WifiManager wifiManager;

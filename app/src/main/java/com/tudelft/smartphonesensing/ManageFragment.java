@@ -25,7 +25,7 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
     private RecyclerView.LayoutManager layoutManager;
     private FloatingActionButton addCellFab;
     ArrayList<String> data = new ArrayList<>();
-    int startNaming = 65;
+    int startNaming = 'A';
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -49,8 +49,6 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
         addCellFab = getView().findViewById(R.id.addCell);
         addCellFab.setOnClickListener(this);
         setupRv();
-
-
     }
 
     private void setupRv() {
@@ -59,8 +57,6 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
         recyclerView.setHasFixedSize(true);
         mAdapter = new CellsAdapter(data, this);
         recyclerView.setAdapter(mAdapter);
-
-
     }
 
     @Override
@@ -83,8 +79,7 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
 
     @Override
     public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-
-//            String cellName=mAdapter.getItem(i);
-
+        //TODO remove?
+        //String cellName=mAdapter.getItem(i);
     }
 }
