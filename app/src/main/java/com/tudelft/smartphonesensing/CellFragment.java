@@ -180,9 +180,6 @@ public class CellFragment extends Fragment {
         scanButton5x.setOnClickListener(btn -> this.scanClicked(5));
         scanButton20x.setOnClickListener(btn -> this.scanClicked(20));
 
-        this.getView().findViewById(R.id.cellbutton0).setOnClickListener(v -> setCell("cell0"));
-        this.getView().findViewById(R.id.cellbutton1).setOnClickListener(v -> setCell("cell1"));
-
         //TODO move this elsewhere
         setCell(initialCell);
     }
