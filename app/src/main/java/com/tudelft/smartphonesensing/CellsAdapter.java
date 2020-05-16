@@ -9,7 +9,6 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -39,8 +38,10 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
             bundle.putString("cellName", textView.getText().toString());
             Fragment fragment = new CellFragment();
             fragment.setArguments(bundle);
-            AppCompatActivity activity = (AppCompatActivity) mContext;
-            activity.getSupportFragmentManager().beginTransaction().replace(R.id.main_container, fragment).addToBackStack(null).commit();
+            //TODO: Bad practice, decouple fragment and activity using some other method, use viewPager
+            MainActivity activity = (MainActivity) mContext;
+            activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).add(R.id.main_container, fragment).show(fragment).commit();
+            activity.setActiveFragment(fragment);
             Log.i("CLICK", "RecyclerView Item Click Position");
         }
     }

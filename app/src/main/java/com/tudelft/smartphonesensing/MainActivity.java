@@ -1,8 +1,6 @@
 package com.tudelft.smartphonesensing;
 
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
@@ -17,6 +15,15 @@ public class MainActivity extends AppCompatActivity {
     final Fragment fragment1 = new ManageFragment();
     final Fragment fragment2 = new TestFragment();
     final FragmentManager fm = getSupportFragmentManager();
+
+    public Fragment getActiveFragment() {
+        return active;
+    }
+
+    public void setActiveFragment(Fragment active) {
+        this.active = active;
+    }
+
     Fragment active = fragment1;
 
     @Override
@@ -37,7 +44,7 @@ public class MainActivity extends AppCompatActivity {
             switch (item.getItemId()) {
                 case R.id.navigation_train:
                     fm.beginTransaction().hide(active).show(fragment1).commit();
-                    active = fragment2;
+                    active = fragment1;
                     return true;
 
                 case R.id.navigation_test:
