@@ -38,6 +38,7 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
             bundle.putString("cellName", textView.getText().toString());
             Fragment fragment = new CellFragment();
             fragment.setArguments(bundle);
+            //TODO: Bad practice, decouple fragment and activity using some other method, use viewPager
             MainActivity activity = (MainActivity) mContext;
             activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).add(R.id.main_container, fragment).show(fragment).commit();
             activity.setActiveFragment(fragment);
