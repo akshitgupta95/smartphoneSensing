@@ -8,7 +8,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.NumberPicker;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -27,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class CellFragment extends Fragment {
 
@@ -56,7 +54,7 @@ public class CellFragment extends Fragment {
                 .allowMainThreadQueries()
                 .build();
 
-        locationScans = db.scanDAO().getAllScansLoc(selectedCell);
+        locationScans = db.scanDAO().getAllScansAtLocation(selectedCell);
         cellnameText.setText(selectedCell);
 
         HashMap<String, Integer> macHistogram = new HashMap<>();
@@ -84,21 +82,28 @@ public class CellFragment extends Fragment {
         final int maxgausses = 5;
         for (int i = 0; i < maxgausses && i < sortedmacHistogram.size(); i++) {
             Map.Entry<String, Integer> entry = sortedmacHistogram.get(i);
-            Bayes.MacLocProbability probs = new Bayes.MacLocProbability(locationScans, entry.getKey());
+
+            List<Scan> filteredScans = locationScans.stream()
+                    .filter(s -> s.getMAC().equalsIgnoreCase(entry.getKey()))
+                    .collect(Collectors.toList());
+            Bayes.GaussianSampler probs = new Bayes.GaussianSampler(filteredScans);
 
             //TODO rewrite this a bit and pre-allocate instead and pull the constants out
             List<DataPoint> linedata = new ArrayList<>();
             for (double x = 0; x < 10; x += 0.05) {
-                linedata.add(new DataPoint(x, probs.sampleGaussian(x)));
+                linedata.add(new DataPoint(x, probs.sample(x)));
             }
             LineGraphSeries<DataPoint> line = new LineGraphSeries<DataPoint>(linedata.toArray(new DataPoint[0]));
             rssiGraph.addSeries(line);
             //TODO probly want the ssid here instead of mac
             line.setTitle(entry.getKey());
-            int color = 0xff000000;//alpha
-            color += Math.round(Math.random() * 255) << 16;//red
-            color += Math.round(Math.random() * 255) << 8;//green
-            color += Math.round(Math.random() * 255);//blue
+
+            //Generate a color based on the SSID that will be random, but the same every time
+            int namehash = entry.getKey().hashCode();
+            //reuse some entropy to fill all the bits (not ideal)
+            namehash = namehash ^ (namehash << 12);
+            //set alpha channel to 255 (opaque) and add random rgb
+            int color = 0xff000000 | (namehash & 0xffffff);
             line.setColor(color);
         }
         rssiGraph.setTitle("Probability density (y) vs normalized signal level (x)");
@@ -125,13 +130,11 @@ public class CellFragment extends Fragment {
                 .allowMainThreadQueries()
                 .build();
 
-        if (results.size() != 0) {
-            for (ScanResult scanResult : results) {
-                int normlevel = WifiManager.calculateSignalLevel(scanResult.level, 10);
-                Scan result = new Scan(scanResult.BSSID, scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell, scanResult.timestamp);
-                db.scanDAO().InsertAll(result);
-                Log.v("DB", "Added scan: " + result);
-            }
+        for (ScanResult scanResult : results) {
+            int normlevel = WifiManager.calculateSignalLevel(scanResult.level, 10);
+            Scan result = new Scan(scanResult.BSSID, scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell, scanResult.timestamp);
+            db.scanDAO().InsertAll(result);
+            Log.v("DB", "Added scan: " + result);
         }
         drawSignaldata();
     }

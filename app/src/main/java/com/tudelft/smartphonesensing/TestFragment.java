@@ -29,7 +29,6 @@ public class TestFragment extends Fragment implements View.OnClickListener {
     private WifiManager wifiManager;
     private List<ScanResult> results;
     private Bayes bayes;
-    private boolean buildTable = true;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -47,12 +46,9 @@ public class TestFragment extends Fragment implements View.OnClickListener {
             case R.id.pred:
                 bayes = new Bayes(getActivity());
                 // TODO: only create table when database is updated so prediction is faster
-                if (buildTable) {
-                    bayes.createTable();
-                    buildTable = false;
-                }
-                beginWifiScanAndLocate();
+                bayes.generateTables();
 
+                beginWifiScanAndLocate();
                 break;
             default:
                 break;
@@ -63,7 +59,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
     @Override
     public void onResume() {
         super.onResume();
-        buildTable = true;
+        //TODO trigger table cache purge
     }
 
     private void beginWifiScanAndLocate() {
@@ -78,9 +74,20 @@ public class TestFragment extends Fragment implements View.OnClickListener {
 
     private void scanSuccess(List<ScanResult> results) {
         if (results.size() != 0) {
-            String location = bayes.predictLocation(results);
+            List<Bayes.cellCandidate> candidates = bayes.predictLocation(results);
+            Bayes.cellCandidate best = candidates.get(0);
+
+            // display the location
+            Toast.makeText(this.getContext(), "Probability :" + best.probability, Toast.LENGTH_SHORT).show();
             TextView locationText = (TextView) getView().findViewById(R.id.text_loc);
-            locationText.setText(location);
+            locationText.setText(best.macTable.location);
+
+            String debugtext = "";
+            for (Bayes.cellCandidate cand : candidates) {
+                debugtext += String.format("%.4f %s\n", cand.probability, cand.macTable.location);
+            }
+            TextView debugview = getView().findViewById(R.id.locateDebugOutput);
+            debugview.setText(debugtext);
         }
     }
 

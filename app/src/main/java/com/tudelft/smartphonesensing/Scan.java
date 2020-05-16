@@ -1,5 +1,6 @@
 package com.tudelft.smartphonesensing;
 
+import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
@@ -39,6 +40,12 @@ public class Scan {
         this.freq = freq;
         this.loc = loc;
         this.time = time;
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return String.format("[%s] %s dBm, %s level (%s)", this.MAC, this.RSSi, this.level, this.SSID);
     }
 
     /* Getters and Setters */

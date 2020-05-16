@@ -2,6 +2,8 @@ package com.tudelft.smartphonesensing;
 
 import android.content.Context;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiManager;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.room.Room;
@@ -14,25 +16,34 @@ import java.util.stream.Collectors;
 
 public class Bayes {
 
-    Context c;
-    public List<MACTable> MacTables = new ArrayList<MACTable>();
+    Context context;
+    List<LocationMacTable> locationMacTables = new ArrayList<>();
+    List<String> usableMacs = new ArrayList<>();
 
     public Bayes(Context context) {
-        c = context;
+        this.context = context;
     }
 
-    // MACTable class
-    public class MACTable {
-        private String location;
-        private Map<String, Map<Integer, Integer>> table;// This nested  hashmap has too much data, avoid hash collisions
+    static public class LocationMacTable {
+        String location;
+        //mac -> sampler map
+        private Map<String, GaussianSampler> table = new HashMap<>();
 
-        public MACTable(String location, Map<String, Map<Integer, Integer>> table) {
+        LocationMacTable(String location) {
             this.location = location;
-            this.table = table;
+        }
+
+        double sampleProb(String mac, double rssi) {
+            GaussianSampler sampler = table.get(mac);
+            return (sampler == null ? 0 : sampler.sample(rssi));
+        }
+
+        void addMacData(String mac, List<Scan> scandata) {
+            table.put(mac, new GaussianSampler(scandata));
         }
     }
 
-    static public class MacLocProbability {
+    static public class GaussianSampler {
         double mean;
         double stddev;
         int nsamples;
@@ -50,14 +61,22 @@ public class Bayes {
             return scans;
         }
 
-        public double sampleGaussian(double x) {
-            return (1 / (stddev * Math.sqrt(2 * Math.PI))) * Math.exp(-(x - mean) * (x - mean) / (2 * stddev * stddev));
+        /**
+         * Samples the pure gaussian pdf generated from the know data points
+         *
+         * @param rssi signal level to sample at
+         * @return probability density
+         */
+        public double sample(double rssi) {
+            if (nsamples == 0) {
+                return 0;
+            }
+            //TODO find better solution to deal with stddev==0 and remove magic constant
+            double roundedStd = Math.max(stddev, 0.2);
+            return (1 / (roundedStd * Math.sqrt(2 * Math.PI))) * Math.exp(-(rssi - mean) * (rssi - mean) / (2 * roundedStd * roundedStd));
         }
 
-        public MacLocProbability(List<Scan> allScansAtLoc, String mac) {
-            scans = allScansAtLoc.stream()
-                    .filter(s -> s.getMAC().equalsIgnoreCase(mac))
-                    .collect(Collectors.toList());
+        public GaussianSampler(List<Scan> scans) {
             if (scans.size() < 2) {
                 mean = 0;
                 stddev = 0;
@@ -79,124 +98,69 @@ public class Bayes {
         }
     }
 
-    public void createTable() {
-        final AppDatabase db = Room.databaseBuilder(c.getApplicationContext(), AppDatabase.class, "production")
+    public void generateTables() {
+        final AppDatabase db = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "production")
                 .allowMainThreadQueries()
                 .build();
 
-        // First get all locations
-        List<String> locations = db.scanDAO().getAllLocations(); //O(N) //TODO: break the monolith O(1), or make loc primary key: O(logN)
-        // Make a table for every location/cell
+        locationMacTables.clear();
+        List<String> locations = db.scanDAO().getAllLocations();
         for (String location : locations) {
-            // query all scanResults for this location
-            List<Scan> scans = db.scanDAO().getAllScansLoc(location); //O(N)//TODO: important, bad db schema, loc primary key:O(logN), seperated tables on location O(1)
-            // Make new table with initialized recordlist
-            MACTable macTable = new MACTable(location, new HashMap<String, Map<Integer, Integer>>());
-
-            // for every scanned Wifi beacon on that location, fill the table
-            for (Scan scan : scans) {
-                // get MAC and RSSi of current scan
-                String curMAC = scan.getMAC();
-                int curRSSi = scan.getRSSi();
-
-                // if the table contains a MACrecord of the scanned MAC (CONTAINS ROW)
-                if (macTable.table.containsKey(curMAC)) {
-                    // Get the RSSi frequencies of the MacRecord
-                    Map<Integer, Integer> freqsRSSi = macTable.table.get(curMAC);
-
-                    // If the current RSSi has been found before update frequency (CONTAINS COLUMN)
-                    if (freqsRSSi.containsKey(curRSSi)) {
-                        freqsRSSi.put(curRSSi, freqsRSSi.get(curRSSi) + 1);
-                        // Else add new RSSi with frequency 1 (NEW COLUMN)
-                    } else {
-                        freqsRSSi.put(curRSSi, 1);
-                    }
-                    macTable.table.put(curMAC, freqsRSSi);
-
-                    // Else put a new MAC record in the MAC table. (NEW ROW)
-                } else {
-                    // Put new entry in with frequency 1 for the RSSi (NEW COLUMN)
-                    Map<Integer, Integer> newRSSi = new HashMap<Integer, Integer>();
-                    newRSSi.put(curRSSi, 1);
-                    macTable.table.put(curMAC, newRSSi);
-                }
+            List<String> locMacs = db.scanDAO().getAllMacsAtLocation(location);
+            LocationMacTable subtable = new LocationMacTable(location);
+            for (String mac : locMacs) {
+                List<Scan> macAppearences = db.scanDAO().getAllScansWithMacAndLocation(location, mac);
+                subtable.addMacData(mac, macAppearences);
             }
-
-            MacTables.add(macTable);
-
+            locationMacTables.add(subtable);
         }
-
     }
 
-    public String predictLocation(List<ScanResult> scanResults) {
-        final AppDatabase db = Room.databaseBuilder(c.getApplicationContext(), AppDatabase.class, "production")
-                .allowMainThreadQueries()
-                .build();//TODO: Make singleton// Move to model class
+    public static class cellCandidate {
+        double probability;
+        LocationMacTable macTable;
 
-        // First get all locations from the database
-        List<String> locations = db.scanDAO().getAllLocations(); //O(N)
-
-        // Make a probability hashmap for P(loc|wifi)
-        Map<String, Double> ProbLocWifi = new HashMap<String, Double>();
-        for (String location : locations) {
-            ProbLocWifi.put(location, 1.0);
+        public cellCandidate(double p, LocationMacTable table) {
+            probability = p;
+            macTable = table;
         }
+    }
 
-        // Set local list of MacTables
-        List<MACTable> candidateList = MacTables;
+    public List<cellCandidate> predictLocation(List<ScanResult> scanResults) {
+        //TODO locationlist could be empty, show a message and quit
+        //initialize set of candidates with equal probabilities
+        //no need to normalize yet
+        double baseprob = 1.0;
+        List<cellCandidate> candidateList = locationMacTables.stream()
+                .map(l -> new cellCandidate(baseprob, l))
+                .collect(Collectors.toList());
+
+        WifiManager wifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
 
 
-        // For every scan provided
         for (ScanResult scan : scanResults) {
-            // get MAC and RSSi
             String curMAC = scan.BSSID;
-            int curRSSi = scan.level;
+            int curLevel = wifiManager.calculateSignalLevel(scan.level, 10);
 
-            // Check all the macTables of every location
-            for (MACTable macTable : candidateList) {  //O(N) TODO: looping over almost the entire DB, not needed See lecture 4 for each prediction
-                // If the scanned MAC exists in this location table (GET ROW)
-                if (macTable.table.containsKey(curMAC)) {
-                    // Get the RSSis for the MAC (GET COLUMNS)
-                    Map<Integer, Integer> freqsRSSi = macTable.table.get(curMAC);
-
-                    // Check if the RSSi value exists (GET COLUMN)
-                    if (freqsRSSi.containsKey(curRSSi)) {
-                        // Get probability P(RSSi_i|MAC, location)
-                        int sum = 0; //TODO: precompute while storing or making table, store prob values instead of RSSi freq
-                        for (int freq : freqsRSSi.values()) {
-                            sum += freq;
-                        }
-                        Double prob = freqsRSSi.get(curRSSi).doubleValue() / sum;
-
-                        // Set P(location|MAC)
-                        ProbLocWifi.put(macTable.location, ProbLocWifi.get(macTable.location) * prob);
-                    } else {
-                        // Table gets removed from candidates and probability set to 0
-                        ProbLocWifi.put(macTable.location, ProbLocWifi.get(macTable.location) * 0.9);
-                        // candidateList.remove(macTable);
-                    }
-                } else {
-                    // Table gets removed from candidates
-                    ProbLocWifi.put(macTable.location, ProbLocWifi.get(macTable.location) * 0.9);
-                    // candidateList.remove(macTable);
+            for (cellCandidate cand : candidateList) {
+                double sampledP = Math.max(0.1, cand.macTable.sampleProb(curMAC, curLevel));
+                if (Double.isNaN(sampledP)) {
+                    Log.v("err", "ads");
                 }
+                cand.probability *= sampledP;
             }
         }
 
-        // Get the location with highest probability by going to the list of P(MAC| location)
-        String curLocation = "None";
-        Double maxProb = 0.0;
-
-        for (Map.Entry<String, Double> entry : ProbLocWifi.entrySet()) {
-            if (entry.getValue() > maxProb) {
-                curLocation = entry.getKey();
-                maxProb = entry.getValue();
-            }
+        //normalize probabilities so they add up to 1
+        double psum = 0;
+        for (cellCandidate cand : candidateList) {
+            psum += cand.probability;
+        }
+        for (cellCandidate cand : candidateList) {
+            cand.probability /= psum;
         }
 
-        Toast.makeText(c.getApplicationContext(), "Probability :" + maxProb, Toast.LENGTH_SHORT).show();
-        // Return the location
-        return curLocation;
+        candidateList.sort((a, b) -> Double.compare(b.probability, a.probability));
+        return candidateList;
     }
-
 }

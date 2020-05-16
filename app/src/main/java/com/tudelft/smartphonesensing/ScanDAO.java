@@ -20,5 +20,13 @@ public interface ScanDAO {
 
     // Get all scans from a certain location
     @Query("SELECT * FROM Scan WHERE loc = :loc")
-    List<Scan> getAllScansLoc(String loc);
+    List<Scan> getAllScansAtLocation(String loc);
+
+    // Get all mac addresses at a location
+    @Query("SELECT distinct MAC from Scan WHERE loc = :loc")
+    List<String> getAllMacsAtLocation(String loc);
+
+    // Get all scans with given mac address and location
+    @Query("SELECT * FROM scan WHERE loc = :loc AND MAC = :mac")
+    List<Scan> getAllScansWithMacAndLocation(String loc, String mac);
 }
