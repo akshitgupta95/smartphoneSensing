@@ -1,6 +1,7 @@
 package com.tudelft.smartphonesensing;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
@@ -17,7 +18,9 @@ public class MainActivity extends AppCompatActivity {
     final FragmentManager fm = getSupportFragmentManager();
 
     public Fragment getActiveFragment() {
-        return active;
+        return getSupportFragmentManager()
+                .findFragmentById(R.id.main_container);
+//        return active;
     }
 
     public void setActiveFragment(Fragment active) {
@@ -43,12 +46,18 @@ public class MainActivity extends AppCompatActivity {
         public boolean onNavigationItemSelected(@NonNull MenuItem item) {
             switch (item.getItemId()) {
                 case R.id.navigation_train:
-                    fm.beginTransaction().hide(active).show(fragment1).commit();
+                    Log.v("Fragment", getActiveFragment().toString());
+                    fm.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+                    fm.beginTransaction().hide(fragment2).commit();
+                    fm.beginTransaction().hide(getActiveFragment()).show(fragment1).commit();
                     active = fragment1;
                     return true;
 
                 case R.id.navigation_test:
-                    fm.beginTransaction().hide(active).show(fragment2).commit();
+                    Log.v("Fragment", getActiveFragment().toString());
+                    fm.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+                    fm.beginTransaction().hide(fragment1).commit();
+                    fm.beginTransaction().hide(getActiveFragment()).show(fragment2).commit();
                     active = fragment2;
                     return true;
             }
