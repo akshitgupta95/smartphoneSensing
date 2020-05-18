@@ -25,7 +25,6 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
     private RecyclerView.LayoutManager layoutManager;
     private FloatingActionButton addCellFab;
     ArrayList<String> data = new ArrayList<>();
-    int startNaming = 'A';
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -72,8 +71,14 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
 
     private void addCell() {
         //TODO: generate a popup asking user for name of cell
-        data.add(Character.toString((char) startNaming));
-        startNaming++;
+        String name = "";
+        for (char namechar = 'A'; namechar <= 'Z'; namechar++) {
+            name = Character.toString((char) namechar);
+            if (!data.contains(name)) {
+                break;
+            }
+        }
+        data.add(name);
         mAdapter.notifyDataSetChanged();
     }
 
