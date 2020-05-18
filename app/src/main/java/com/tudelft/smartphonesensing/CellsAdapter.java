@@ -40,7 +40,9 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
             fragment.setArguments(bundle);
             //TODO: Bad practice, decouple fragment and activity using some other method, use viewPager
             MainActivity activity = (MainActivity) mContext;
-            activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).add(R.id.main_container, fragment).show(fragment).commit();
+            activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).addToBackStack(null).commit();
+//            activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).show(fragment).addToBackStack(null).commit();
+
             activity.setActiveFragment(fragment);
             Log.i("CLICK", "RecyclerView Item Click Position");
         }
