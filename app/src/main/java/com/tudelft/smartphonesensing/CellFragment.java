@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class CellFragment extends Fragment {
@@ -94,9 +95,18 @@ public class CellFragment extends Fragment {
                 linedata.add(new DataPoint(x, probs.sample(x)));
             }
             LineGraphSeries<DataPoint> line = new LineGraphSeries<DataPoint>(linedata.toArray(new DataPoint[0]));
-            rssiGraph.addSeries(line);
-            //TODO probly want the ssid here instead of mac
-            line.setTitle(entry.getKey());
+            Scan scanentry = locationScans.stream()
+                    .filter(s -> s.getMAC().equalsIgnoreCase(entry.getKey()))
+                    .findFirst()
+                    .orElse(null);
+
+            String name;
+            if (scanentry != null && !scanentry.getSSID().isEmpty()) {
+                name = scanentry.getSSID();
+            } else {
+                name = String.format("[%s]", entry.getKey());
+            }
+            line.setTitle(name);
 
             //Generate a color based on the SSID that will be random, but the same every time
             int namehash = entry.getKey().hashCode();
@@ -105,7 +115,9 @@ public class CellFragment extends Fragment {
             //set alpha channel to 255 (opaque) and add random rgb
             int color = 0xff000000 | (namehash & 0xffffff);
             line.setColor(color);
+            rssiGraph.addSeries(line);
         }
+        rssiGraph.getLegendRenderer().resetStyles();
         rssiGraph.setTitle("Probability density (y) vs normalized signal level (x)");
         rssiGraph.getLegendRenderer().setVisible(true);
         rssiGraph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
