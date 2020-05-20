@@ -36,9 +36,7 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 
-        final AppDatabase db = Room.databaseBuilder(getContext().getApplicationContext(), AppDatabase.class, "production")
-                .allowMainThreadQueries()
-                .build();
+        final AppDatabase db = AppDatabase.getInstance(getContext());
         data.clear();
 
         //TODO currently cells without data are lost when reopening the app, maybe second table with all locations?

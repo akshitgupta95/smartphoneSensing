@@ -14,13 +14,13 @@ public class Scan {
     private String SSID;
 
     @ColumnInfo(name = "MAC")
-    private String MAC;
+    private long MAC;
 
     @ColumnInfo(name = "RSSi")
     private int RSSi;
 
     @ColumnInfo(name = "level")
-    private int level;
+    private double level;
 
     @ColumnInfo(name = "freq")
     private int freq;
@@ -32,7 +32,7 @@ public class Scan {
     private long time;
 
 
-    public Scan(String MAC, String SSID, int RSSi, int level, int freq, String loc, long time) {
+    public Scan(long MAC, String SSID, int RSSi, double level, int freq, String loc, long time) {
         this.MAC = MAC;
         this.SSID = SSID;
         this.RSSi = RSSi;
@@ -66,12 +66,16 @@ public class Scan {
         this.SSID = SSID;
     }
 
-    public String getMAC() {
+    public long getMAC() {
         return MAC;
     }
 
-    public void setMAC(String MAC) {
+    public void setMAC(long MAC) {
         this.MAC = MAC;
+    }
+
+    public void setMAC(String MAC) {
+        this.MAC = Util.macStringToLong(MAC);
     }
 
     public int getRSSi() {
@@ -82,11 +86,11 @@ public class Scan {
         this.RSSi = RSSi;
     }
 
-    public int getLevel() {
+    public double getLevel() {
         return level;
     }
 
-    public void setLevel(int level) {
+    public void setLevel(double level) {
         this.level = level;
     }
 

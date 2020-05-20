@@ -51,14 +51,12 @@ public class CellFragment extends Fragment {
 
     void drawSignaldata() {
         //TODO should we use some global instance of the database?
-        final AppDatabase db = Room.databaseBuilder(this.getContext().getApplicationContext(), AppDatabase.class, "production")
-                .allowMainThreadQueries()
-                .build();
+        final AppDatabase db = AppDatabase.getInstance(this.getContext());
 
         locationScans = db.scanDAO().getAllScansAtLocation(selectedCell);
         cellnameText.setText(selectedCell);
 
-        HashMap<String, Integer> macHistogram = new HashMap<>();
+        HashMap<Long, Integer> macHistogram = new HashMap<>();
         for (Scan scan : locationScans) {
             Integer prev = macHistogram.get(scan.getMAC());
             macHistogram.put(scan.getMAC(), (prev == null ? 1 : prev + 1));
@@ -77,15 +75,15 @@ public class CellFragment extends Fragment {
         numSamplesText.setText(maxMacEntries + "");
 
         rssiGraph.removeAllSeries();
-        List<Map.Entry<String, Integer>> sortedmacHistogram = macHistogram.entrySet().stream()
+        List<Map.Entry<Long, Integer>> sortedmacHistogram = macHistogram.entrySet().stream()
                 .sorted((a, b) -> b.getValue() - a.getValue())
                 .collect(Collectors.toList());
         final int maxgausses = 5;
         for (int i = 0; i < maxgausses && i < sortedmacHistogram.size(); i++) {
-            Map.Entry<String, Integer> entry = sortedmacHistogram.get(i);
+            Map.Entry<Long, Integer> entry = sortedmacHistogram.get(i);
 
             List<Scan> filteredScans = locationScans.stream()
-                    .filter(s -> s.getMAC().equalsIgnoreCase(entry.getKey()))
+                    .filter(s -> s.getMAC() == entry.getKey())
                     .collect(Collectors.toList());
             Bayes.GaussianSampler probs = new Bayes.GaussianSampler(filteredScans);
 
@@ -96,7 +94,7 @@ public class CellFragment extends Fragment {
             }
             LineGraphSeries<DataPoint> line = new LineGraphSeries<DataPoint>(linedata.toArray(new DataPoint[0]));
             Scan scanentry = locationScans.stream()
-                    .filter(s -> s.getMAC().equalsIgnoreCase(entry.getKey()))
+                    .filter(s -> s.getMAC() == entry.getKey())
                     .findFirst()
                     .orElse(null);
 
@@ -104,7 +102,7 @@ public class CellFragment extends Fragment {
             if (scanentry != null && !scanentry.getSSID().isEmpty()) {
                 name = scanentry.getSSID();
             } else {
-                name = String.format("[%s]", entry.getKey());
+                name = String.format("[%s]", Util.macLongToString(entry.getKey()));
             }
             line.setTitle(name);
 
@@ -144,7 +142,7 @@ public class CellFragment extends Fragment {
 
         for (ScanResult scanResult : results) {
             int normlevel = WifiManager.calculateSignalLevel(scanResult.level, 10);
-            Scan result = new Scan(scanResult.BSSID, scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell, scanResult.timestamp);
+            Scan result = new Scan(Util.macStringToLong(scanResult.BSSID), scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell, scanResult.timestamp);
             db.scanDAO().InsertAll(result);
             Log.v("DB", "Added scan: " + result);
         }
