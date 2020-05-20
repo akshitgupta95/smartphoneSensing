@@ -137,16 +137,16 @@ public class Bayes {
 
         WifiManager wifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
 
+        //TODO the value of this depends on the width of the expected RSSi range!!
+        //it will break when a different normalisation is used than 0-10
+        final double minimalP = 0.1;
 
         for (ScanResult scan : scanResults) {
             String curMAC = scan.BSSID;
             int curLevel = wifiManager.calculateSignalLevel(scan.level, 10);
 
             for (cellCandidate cand : candidateList) {
-                double sampledP = Math.max(0.1, cand.macTable.sampleProb(curMAC, curLevel));
-                if (Double.isNaN(sampledP)) {
-                    Log.v("err", "ads");
-                }
+                double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));
                 cand.probability *= sampledP;
             }
         }
