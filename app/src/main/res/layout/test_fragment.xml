@@ -66,10 +66,15 @@
 
     <TextView
         android:id="@+id/locateDebugOutput"
-        android:layout_width="393dp"
-        android:layout_height="265dp"
+        android:layout_width="381dp"
+        android:layout_height="134dp"
         android:layout_below="@+id/text_title"
         android:layout_marginTop="30dp" />
 
+    <com.tudelft.smartphonesensing.FloorplanView
+        android:layout_width="300dp"
+        android:layout_height="200dp"
+        android:layout_below="@+id/locateDebugOutput"
+        android:layout_marginTop="22dp" />
 
 </RelativeLayout>
