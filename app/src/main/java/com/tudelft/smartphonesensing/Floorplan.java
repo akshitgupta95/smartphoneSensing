@@ -7,6 +7,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.PointF;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.view.View;
 
@@ -18,9 +19,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Floorplan {
     List<FloorElement> elements = new ArrayList<>();
+    List<FloorObstacle> obstacles = new ArrayList<>();
 
     static final String ELEMENT_POLYGON = "poly";
     static final String ELEMENT_RECTANGLE = "rectangle";
@@ -32,10 +35,23 @@ public class Floorplan {
 
     public void setElements(List<FloorElement> elements) {
         this.elements = elements;
+        elementsChanged();
+    }
+
+    void elementsChanged() {
+        this.obstacles = elements.stream()
+                .filter(obst -> obst instanceof FloorObstacle)
+                .map(FloorObstacle.class::cast)
+                .collect(Collectors.toList());
     }
 
     public List<FloorElement> getElements() {
         return elements;
+    }
+
+    public void addElement(FloorElement el) {
+        elements.add(el);
+        elementsChanged();
     }
 
     public JSONObject serialize() throws JSONException {
@@ -71,7 +87,7 @@ public class Floorplan {
             newel.deserialize(child);
             els.add(newel);
         }
-        this.elements = els;
+        setElements(els);
     }
 
     void render(Canvas canvas) {
@@ -80,13 +96,42 @@ public class Floorplan {
         }
     }
 
-    public interface FloorElement {
+    public interface FloorEditable {
+        /**
+         * @return true if the element occupies floor space at x,y
+         */
+        boolean hitTest(float x, float y);
+
+        /**
+         * resize the element by multiplying it's size by scalex, scaley
+         *
+         * @return true if the component was changed, false otherwise
+         */
+        boolean editScale(float scalex, float scaley);
+
+        /**
+         * move the element by dx, dy in meters
+         *
+         * @return true if the component was changed, false otherwise
+         */
+        boolean editMove(float dx, float dy);
+
+        /**
+         * @return a path that defines a highlight contour around the element
+         */
+        Path getContour();
+    }
+
+    public interface FloorObstacle {
         /**
          * Checks if the obstacle collides with a line between p1 and p2
          *
          * @return true if there is a collision
          */
         boolean checkCollision(PointF p1, PointF p2);
+    }
+
+    public interface FloorElement {
 
         /**
          * Used to store the obstacle
@@ -111,7 +156,7 @@ public class Floorplan {
         void render(Canvas c);
     }
 
-    public static class PolygonObstacle implements FloorElement {
+    public static class PolygonObstacle implements FloorElement, FloorObstacle {
         PointF[] vertices;
 
         PointF[] getVertices() {
@@ -160,7 +205,7 @@ public class Floorplan {
                 JSONObject jsonVertex = verts.getJSONObject(i);
                 vertices.add(new PointF((float) jsonVertex.getDouble("x"), (float) jsonVertex.getDouble("y")));
             }
-            this.vertices = (PointF[]) vertices.toArray();
+            this.vertices = vertices.toArray(new PointF[vertices.size()]);
         }
 
         @Override
@@ -178,8 +223,8 @@ public class Floorplan {
         }
     }
 
-    public static class RectangleObstacle implements FloorElement {
-        RectF area;
+    public static class RectangleObstacle implements FloorElement, FloorObstacle, FloorEditable {
+        RectF area = new RectF();
 
         public RectF getArea() {
             return area;
@@ -221,6 +266,41 @@ public class Floorplan {
             Paint fill = new Paint();
             fill.setARGB(255, 0, 0, 0);
             c.drawRect(area, fill);
+        }
+
+        @Override
+        public boolean hitTest(float x, float y) {
+            return x >= area.left && x <= area.right && y >= area.top && y <= area.bottom;
+        }
+
+        @Override
+        public boolean editScale(float dx, float dy) {
+            area.left -= dx / 2f;
+            area.right += dx / 2f;
+            area.top -= dy / 2f;
+            area.bottom += dy / 2f;
+            return true;
+        }
+
+        @Override
+        public boolean editMove(float dx, float dy) {
+            area.left += dx;
+            area.right += dx;
+            area.top += dy;
+            area.bottom += dy;
+            return true;
+        }
+
+        @Override
+        public Path getContour() {
+            Path p = new Path();
+            p.moveTo(area.left, area.top);
+            p.lineTo(area.right, area.top);
+            p.lineTo(area.right, area.bottom);
+            p.lineTo(area.left, area.bottom);
+            p.close();
+            //p.addRect(area, Path.Direction.CW);
+            return p;
         }
     }
 
