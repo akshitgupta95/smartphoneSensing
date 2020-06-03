@@ -1,36 +1,119 @@
 package com.tudelft.smartphonesensing;
 
-import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.Point;
-import android.graphics.PointF;
-import android.graphics.Rect;
 import android.graphics.RectF;
-import android.view.View;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.locationtech.jts.awt.PointShapeFactory;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.impl.CoordinateArraySequence;
+import org.locationtech.jts.triangulate.ConformingDelaunayTriangulationBuilder;
+import org.locationtech.jts.triangulate.quadedge.QuadEdge;
+import org.locationtech.jts.triangulate.quadedge.QuadEdgeSubdivision;
+import org.locationtech.jts.triangulate.quadedge.Vertex;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Stack;
 import java.util.stream.Collectors;
 
 public class Floorplan {
     List<FloorElement> elements = new ArrayList<>();
     List<FloorObstacle> obstacles = new ArrayList<>();
+    List<ParticleModel.ConvexBox> walkable = new ArrayList<>();
 
     static final String ELEMENT_POLYGON = "poly";
     static final String ELEMENT_RECTANGLE = "rectangle";
     static final String ELEMENT_FLOORPLAN = "floorplan";
 
     Floorplan() {
+    }
 
+    public List<ParticleModel.ConvexBox> getWalkable() {
+        Geometry combined = null;
+        for (FloorObstacle obst : obstacles) {
+            combined = (combined == null ? obst.getGeometry() : combined.union(obst.getGeometry()));
+        }
+        List<ParticleModel.ConvexBox> triangles = new ArrayList<>();
+        if (combined == null) {
+            return triangles;
+        }
+
+        ConformingDelaunayTriangulationBuilder b = new ConformingDelaunayTriangulationBuilder();
+        b.setSites(combined);
+        b.setConstraints(combined);
+        b.setTolerance(1e-10);
+        QuadEdgeSubdivision div = b.getSubdivision();
+
+        class Border {
+            ParticleModel.ConvexBox box = null;
+            int index = -1;
+            QuadEdge edge = null;
+
+            Border(ParticleModel.ConvexBox box, int index, QuadEdge edge) {
+                this.box = box;
+                this.index = index;
+                this.edge = edge;
+            }
+
+            Border() {
+            }
+        }
+
+        HashMap<QuadEdge, Border> visited = new HashMap<>();
+        Stack<QuadEdge> unchecked = new Stack<>();
+        unchecked.add((QuadEdge) div.getEdges().iterator().next());
+        while (!unchecked.empty()) {
+            QuadEdge edge = unchecked.pop();
+            if (visited.containsKey(edge)) {
+                continue;
+            }
+
+            QuadEdge start = edge;
+            List<QuadEdge> edges = new ArrayList<>();
+            List<Coordinate> points = new ArrayList<>();
+            do {
+                edges.add(edge);
+                points.add(edge.orig().getCoordinate());
+                edge = edge.dNext().sym();
+            }
+            while (edge != start);
+
+
+            ParticleModel.ConvexBox triangle = new ParticleModel.ConvexBox(points.toArray(new Coordinate[0]));
+            Point center = new Point(new CoordinateArraySequence(new Coordinate[]{triangle.center}), new GeometryFactory());
+            boolean valid = triangle.volume > 0 && combined.contains(center);
+
+            for (int i = 0; i < edges.size(); i++) {
+                QuadEdge subedge = edges.get(i);
+                visited.put(subedge, valid ? new Border(triangle, i, subedge) : new Border());
+                Border other = visited.getOrDefault(subedge.sym(), null);
+                if (other == null) {
+                    unchecked.add(subedge.sym());
+                } else if (valid && other.box != null) {
+                    other.box.neighbours[other.index] = triangle;
+                    triangle.neighbours[i] = other.box;
+                }
+            }
+
+            if (valid) {
+                triangles.add(triangle);
+            }
+        }
+        return triangles;
     }
 
     public void setElements(List<FloorElement> elements) {
@@ -38,11 +121,12 @@ public class Floorplan {
         elementsChanged();
     }
 
-    void elementsChanged() {
+    public void elementsChanged() {
         this.obstacles = elements.stream()
                 .filter(obst -> obst instanceof FloorObstacle)
                 .map(FloorObstacle.class::cast)
                 .collect(Collectors.toList());
+        walkable = getWalkable();
     }
 
     public List<FloorElement> getElements() {
@@ -94,6 +178,19 @@ public class Floorplan {
         for (Floorplan.FloorElement el : elements) {
             el.render(canvas);
         }
+        Paint paint = new Paint();
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(0.02f);
+        paint.setARGB(255, 255, 0, 0);
+        for (ParticleModel.ConvexBox box : walkable) {
+            Path p = new Path();
+            p.moveTo((float) box.points[0].x, (float) box.points[0].y);
+            for (int i = 1; i < box.points.length; i++) {
+                p.lineTo((float) box.points[i].x, (float) box.points[i].y);
+            }
+            p.close();
+            canvas.drawPath(p, paint);
+        }
     }
 
     public interface FloorEditable {
@@ -123,12 +220,7 @@ public class Floorplan {
     }
 
     public interface FloorObstacle {
-        /**
-         * Checks if the obstacle collides with a line between p1 and p2
-         *
-         * @return true if there is a collision
-         */
-        boolean checkCollision(PointF p1, PointF p2);
+        Polygon getGeometry();
     }
 
     public interface FloorElement {
@@ -157,36 +249,29 @@ public class Floorplan {
     }
 
     public static class PolygonObstacle implements FloorElement, FloorObstacle {
-        PointF[] vertices;
+        Coordinate[] vertices;
 
-        PointF[] getVertices() {
+        Coordinate[] getVertices() {
             return vertices;
         }
 
-        void setVertices(PointF[] vertices) {
+        void setVertices(Coordinate[] vertices) {
             this.vertices = vertices;
         }
 
-        @Override
-        public boolean checkCollision(PointF p1, PointF p2) {
-            if (vertices.length < 2) {
-                return false;
-            }
-            PointF prevVertex = vertices[vertices.length - 1];
-            for (PointF vertex : vertices) {
-                if (Util.intersectLineFragments(p1.x, p1.y, p2.x, p2.y, vertex.x, vertex.y, prevVertex.x, prevVertex.y)) {
-                    return true;
-                }
-                prevVertex = vertex;
-            }
-            return false;
+        public Polygon getGeometry() {
+            GeometryFactory fact = new GeometryFactory();
+            Coordinate[] closed = Arrays.copyOf(vertices, vertices.length + 1);
+            closed[closed.length - 1] = vertices[0];
+            LinearRing ring = fact.createLinearRing(closed);
+            return new Polygon(ring, null, fact);
         }
 
         @Override
         public JSONObject serialize() throws JSONException {
             JSONObject obj = new JSONObject();
             JSONArray verts = new JSONArray();
-            for (PointF vertex : vertices) {
+            for (Coordinate vertex : vertices) {
                 JSONObject jsonvertex = new JSONObject();
                 jsonvertex.put("x", vertex.x);
                 jsonvertex.put("y", vertex.y);
@@ -199,21 +284,21 @@ public class Floorplan {
 
         @Override
         public void deserialize(JSONObject props) throws JSONException {
-            List<PointF> vertices = new ArrayList<>();
+            List<Coordinate> vertices = new ArrayList<>();
             JSONArray verts = props.getJSONArray("vertices");
             for (int i = 0; i < verts.length(); i++) {
                 JSONObject jsonVertex = verts.getJSONObject(i);
-                vertices.add(new PointF((float) jsonVertex.getDouble("x"), (float) jsonVertex.getDouble("y")));
+                vertices.add(new Coordinate(jsonVertex.getDouble("x"), jsonVertex.getDouble("y")));
             }
-            this.vertices = vertices.toArray(new PointF[vertices.size()]);
+            this.vertices = vertices.toArray(new Coordinate[0]);
         }
 
         @Override
         public void render(Canvas c) {
             Path p = new Path();
-            p.moveTo(vertices[0].x, vertices[0].y);
+            p.moveTo((float) vertices[0].getX(), (float) vertices[0].getY());
             for (int i = 1; i < vertices.length; i++) {
-                p.lineTo(vertices[i].x, vertices[i].y);
+                p.lineTo((float) vertices[i].getX(), (float) vertices[i].getY());
             }
             p.close();
 
@@ -235,11 +320,14 @@ public class Floorplan {
         }
 
         @Override
-        public boolean checkCollision(PointF p1, PointF p2) {
-            return Util.intersectLineFragments(p1.x, p1.y, p2.x, p2.y, area.left, area.top, area.right, area.top)
-                    || Util.intersectLineFragments(p1.x, p1.y, p1.x, p2.y, area.right, area.top, area.right, area.bottom)
-                    || Util.intersectLineFragments(p1.x, p1.y, p2.x, p2.y, area.right, area.bottom, area.left, area.bottom)
-                    || Util.intersectLineFragments(p1.x, p1.y, p2.x, p2.y, area.left, area.bottom, area.left, area.top);
+        public Polygon getGeometry() {
+            return new GeometryFactory().createPolygon(new Coordinate[]{
+                    new Coordinate(area.left, area.top),
+                    new Coordinate(area.right, area.top),
+                    new Coordinate(area.right, area.bottom),
+                    new Coordinate(area.left, area.bottom),
+                    new Coordinate(area.left, area.top)
+            });
         }
 
         @Override

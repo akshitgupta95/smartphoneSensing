@@ -29,6 +29,8 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'org.locationtech.jts:jts-core:1.16.1'
+    implementation 'org.locationtech.jts:jts:1.16.1'
     implementation 'com.jjoe64:graphview:4.2.2'
     implementation 'androidx.recyclerview:recyclerview:1.0.0'
     implementation 'androidx.appcompat:appcompat:1.1.0'

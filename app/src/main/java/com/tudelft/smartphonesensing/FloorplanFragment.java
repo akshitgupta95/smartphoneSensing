@@ -11,6 +11,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import java.lang.reflect.InvocationTargetException;
+
 public class FloorplanFragment extends Fragment {
 
     @Override
@@ -48,6 +50,7 @@ public class FloorplanFragment extends Fragment {
             boolean editing = floorview.getEditing();
             floorview.setEditing(!editing);
             editButton.setText(editing ? "Edit" : "Done");
+            floorview.floorplan.elementsChanged();
         });
     }
 
