@@ -1,5 +1,6 @@
 package com.tudelft.smartphonesensing;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
@@ -19,7 +20,10 @@ import org.json.JSONObject;
 
 public class FloorplanView extends View {
     Floorplan floorplan;
+    ParticleModel particleModel;
     boolean editing = false;
+    //TODO remove sim
+    boolean simulating = false;
     float viewportWidthMeters = 5;
     PointF viewportCenter = new PointF(0, 0);
     float rotation = 0;
@@ -43,8 +47,16 @@ public class FloorplanView extends View {
         this.invalidate();
     }
 
+    public void setSimulating(boolean simulating) {
+        this.simulating = simulating;
+    }
+
     public Floorplan getFloorplan() {
         return this.floorplan;
+    }
+
+    public ParticleModel getParticleModel() {
+        return this.particleModel;
     }
 
     public void setFloorplan(Floorplan floorplan) {
@@ -53,8 +65,16 @@ public class FloorplanView extends View {
         invalidate();
     }
 
+    public void setParticleModel(ParticleModel particleModel) {
+        this.particleModel = particleModel;
+    }
+
     boolean getEditing() {
         return this.editing;
+    }
+
+    boolean getSimulating() {
+        return simulating;
     }
 
     void addRectangleObstacle(float x, float y) {
@@ -68,13 +88,14 @@ public class FloorplanView extends View {
         floorTransform.reset();
         float viewportHeightMeters = viewportWidthMeters * getHeight() / getWidth();
         floorTransform.postTranslate(-viewportCenter.x, -viewportCenter.y);//move to center
-        floorTransform.postScale(1 / viewportWidthMeters, 1 / viewportHeightMeters);//normalize to viewport coords
+        floorTransform.postScale(1 / viewportWidthMeters, -1 / viewportHeightMeters);//normalize to viewport coords
         floorTransform.postTranslate(0.5f, 0.5f);//put origin in center of screen
         floorTransform.postScale(getWidth(), getHeight());//convert to pixel coords
         floorTransform.invert(floorTransformInverse);
         invalidate();
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     void init() {
         FlingHandler flinger = new FlingHandler();
 
@@ -86,67 +107,78 @@ public class FloorplanView extends View {
             //TODO toast message
         }
 
-        ScaleGestureDetector pinchDetect = new ScaleGestureDetector(getContext(), new ScaleGestureDetector.SimpleOnScaleGestureListener() {
-            public boolean onScale(ScaleGestureDetector detector) {
-                if (selectedElement != null) {
-                    float[] points = new float[]{0, 0, detector.getCurrentSpanX(), detector.getCurrentSpanY(), detector.getPreviousSpanX(), detector.getPreviousSpanY()};
-                    floorTransformInverse.mapPoints(points);
-                    selectedElement.editScale(points[2] - points[4], points[3] - points[5]);
-                    invalidate();
-                } else {
-                    viewportWidthMeters /= detector.getScaleFactor();
-                    viewChanged();
+        setOnTouchListener(new OnTouchListener() {
+            int downcount = 0;
+            boolean didmoveaction = false;
+
+            ScaleGestureDetector pinchDetect = new ScaleGestureDetector(getContext(), new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                public boolean onScale(ScaleGestureDetector detector) {
+                    if (selectedElement != null) {
+                        float[] points = new float[]{0, 0, detector.getCurrentSpanX(), detector.getCurrentSpanY(), detector.getPreviousSpanX(), detector.getPreviousSpanY()};
+                        floorTransformInverse.mapPoints(points);
+                        selectedElement.editScale(points[2] - points[4], points[3] - points[5]);
+                        invalidate();
+                    } else {
+                        viewportWidthMeters /= detector.getScaleFactor();
+                        viewChanged();
+                    }
+                    didmoveaction = true;
+                    return true;
+                }
+            });
+
+            GestureDetector scrollDetect = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
+                @Override
+                public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+                    dragmove(distanceX, distanceY, false);
+                    didmoveaction = true;
+                    return true;
+                }
+
+                @Override
+                public boolean onDown(MotionEvent e) {
+                    flinger.stop();
+                    return true;
+                }
+
+                @Override
+                public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                    if (selectedElement == null) {
+                        //not sure in what unit velocity is, we need total pixel traveled for our anim and this seems to work
+                        float scale = 0.2f;
+                        flinger.fling(new PointF(velocityX * scale, velocityY * scale));
+                    }
+                    return true;
+                }
+            });
+
+            @Override
+            public boolean onTouch(View v, MotionEvent e) {
+                pinchDetect.onTouchEvent(e);
+                scrollDetect.onTouchEvent(e);
+
+                //TODO add some conditions about time/touch movements
+                if (e.getAction() == MotionEvent.ACTION_DOWN) {
+                    downcount++;
+                }
+                if (e.getAction() == MotionEvent.ACTION_UP) {
+                    downcount--;
+                    if (downcount == 0) {
+                        if (editing) {
+                            if (didmoveaction) {
+                                floorplan.elementsChanged();
+                                invalidate();
+                            } else {
+                                onClick(e.getX(), e.getY());
+                            }
+                        }
+                        didmoveaction = false;
+                    }
                 }
                 return true;
             }
         });
 
-        GestureDetector scrollDetect = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
-            @Override
-            public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-                if (selectedElement != null) {
-                    float[] points = new float[]{0, 0, distanceX, distanceY};
-                    floorTransformInverse.mapPoints(points);
-                    selectedElement.editMove(points[0] - points[2], points[1] - points[3]);
-                    invalidate();
-                } else {
-                    float metersPerPixel = viewportWidthMeters / getWidth();
-                    viewportCenter.x += distanceX * metersPerPixel;
-                    viewportCenter.y += distanceY * metersPerPixel;
-                    viewChanged();
-                }
-                return true;
-            }
-
-            @Override
-            public boolean onDown(MotionEvent e) {
-                flinger.stop();
-                return true;
-            }
-
-            @Override
-            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-                if (selectedElement == null) {
-                    //not sure in what unit velocity is, we need total pixel traveled for our anim and this seems to work
-                    float scale = 0.2f;
-                    flinger.fling(new PointF(velocityX * scale, velocityY * scale));
-                }
-                return true;
-            }
-        });
-
-        setOnTouchListener((v, e) -> {
-            pinchDetect.onTouchEvent(e);
-            scrollDetect.onTouchEvent(e);
-
-            //TODO add some conditions about time/touch movements
-            if (editing && e.getAction() == MotionEvent.ACTION_DOWN) {
-                //not using normal performclick flow as that one does not include x,y info
-                onClick(e.getX(), e.getY());
-            }
-
-            return true;
-        });
     }
 
     void onClick(float x, float y) {
@@ -188,9 +220,7 @@ public class FloorplanView extends View {
             PointF difdisplacement = new PointF(displacement.x - previousDisplacement.x, displacement.y - previousDisplacement.y);
             //convert from pixel space to floorplan space
             float scaling = viewportWidthMeters / getWidth();
-            viewportCenter.x -= scaling * difdisplacement.x;
-            viewportCenter.y -= scaling * difdisplacement.y;
-            viewChanged();
+            dragmove(-difdisplacement.x, -difdisplacement.y, true);
 
             previousDisplacement = displacement;
             if (timeprogress < 0.99) {
@@ -210,6 +240,26 @@ public class FloorplanView extends View {
 
         void stop() {
             animstart = 0;
+        }
+    }
+
+    void dragmove(float dxpx, float dypx, boolean isfling) {
+        float[] pts = new float[]{0f, 0f, dxpx, dypx};
+        floorTransformInverse.mapPoints(pts);
+        float dx = pts[2] - pts[0];
+        float dy = pts[3] - pts[1];
+        if (simulating && particleModel != null) {
+            particleModel.move(-dx, -dy);
+            invalidate();
+        } else if (selectedElement != null) {
+            if (!isfling) {
+                selectedElement.editMove(-dx, -dy);
+                invalidate();
+            }
+        } else {
+            viewportCenter.x += dx;
+            viewportCenter.y += dy;
+            viewChanged();
         }
     }
 
@@ -239,6 +289,9 @@ public class FloorplanView extends View {
             highlight.setARGB(255, 255, 255, 255);
             highlight.setStyle(Paint.Style.STROKE);
             canvas.drawPath(selectedElement.getContour(), highlight);
+        }
+        if (particleModel != null) {
+            particleModel.render(canvas);
         }
 
         //restore old transforms

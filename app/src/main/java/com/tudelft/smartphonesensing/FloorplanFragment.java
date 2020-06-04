@@ -12,8 +12,10 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 public class FloorplanFragment extends Fragment {
+    ParticleModel model = new ParticleModel();
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -26,8 +28,10 @@ public class FloorplanFragment extends Fragment {
         Button saveButton = this.getView().findViewById(R.id.floorplanSaveButton);
         Button loadButton = this.getView().findViewById(R.id.floorplanLoadButton);
         Button addRectButton = this.getView().findViewById(R.id.floorplanAddRectButton);
+        Button particlesButton = this.getView().findViewById(R.id.floorplanParticlesButton);
+        Button simbutton = this.getView().findViewById(R.id.floorplanSimButton);
         FloorplanView floorview = this.getView().findViewById(R.id.floorplanView);
-
+        floorview.setParticleModel(model);
 
         addRectButton.setOnClickListener(btn -> {
             floorview.addRectangleObstacle(0, 0);
@@ -50,7 +54,18 @@ public class FloorplanFragment extends Fragment {
             boolean editing = floorview.getEditing();
             floorview.setEditing(!editing);
             editButton.setText(editing ? "Edit" : "Done");
-            floorview.floorplan.elementsChanged();
+            floorview.getFloorplan().elementsChanged();
+        });
+
+        particlesButton.setOnClickListener(btn -> {
+            Floorplan map = floorview.getFloorplan();
+            model.setBoxes(map.getWalkable());
+            model.spawnParticles(1000000);
+            floorview.invalidate();
+        });
+
+        simbutton.setOnClickListener(btn -> {
+            floorview.setSimulating(!floorview.getSimulating());
         });
     }
 

@@ -39,9 +39,28 @@
         android:id="@+id/floorplanAddRectButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
         android:text="Add Rect"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/floorplanParticlesButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="Particles"
+        app:layout_constraintStart_toEndOf="@+id/floorplanAddRectButton"
+        app:layout_constraintTop_toTopOf="@+id/floorplanAddRectButton" />
+    <Button
+        android:id="@+id/floorplanSimButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="Move"
+        app:layout_constraintStart_toEndOf="@+id/floorplanParticlesButton"
+        app:layout_constraintTop_toTopOf="@+id/floorplanAddRectButton" />
 
     <com.tudelft.smartphonesensing.FloorplanView
         android:id="@+id/floorplanView"

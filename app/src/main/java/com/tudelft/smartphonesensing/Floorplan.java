@@ -12,8 +12,10 @@ import org.locationtech.jts.awt.PointShapeFactory;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
@@ -30,10 +32,10 @@ import java.util.List;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
+import mxb.jts.triangulate.EarClipper;
+
 public class Floorplan {
     List<FloorElement> elements = new ArrayList<>();
-    List<FloorObstacle> obstacles = new ArrayList<>();
-    List<ParticleModel.ConvexBox> walkable = new ArrayList<>();
 
     static final String ELEMENT_POLYGON = "poly";
     static final String ELEMENT_RECTANGLE = "rectangle";
@@ -43,74 +45,134 @@ public class Floorplan {
     }
 
     public List<ParticleModel.ConvexBox> getWalkable() {
-        Geometry combined = null;
-        for (FloorObstacle obst : obstacles) {
-            combined = (combined == null ? obst.getGeometry() : combined.union(obst.getGeometry()));
+        Geometry combined = new MultiPolygon(new Polygon[0], new GeometryFactory());
+        for (FloorElement el : elements) {
+            if (el instanceof FloorObstacle) {
+                combined = combined.union(((FloorObstacle) el).getGeometry());
+            }
         }
-        List<ParticleModel.ConvexBox> triangles = new ArrayList<>();
-        if (combined == null) {
-            return triangles;
-        }
-
-        ConformingDelaunayTriangulationBuilder b = new ConformingDelaunayTriangulationBuilder();
-        b.setSites(combined);
-        b.setConstraints(combined);
-        b.setTolerance(1e-10);
-        QuadEdgeSubdivision div = b.getSubdivision();
 
         class Border {
-            ParticleModel.ConvexBox box = null;
-            int index = -1;
-            QuadEdge edge = null;
+            private ParticleModel.ConvexBox box = null;
+            private int index = -1;
 
-            Border(ParticleModel.ConvexBox box, int index, QuadEdge edge) {
+            private Border(ParticleModel.ConvexBox box, int index) {
                 this.box = box;
                 this.index = index;
-                this.edge = edge;
             }
 
-            Border() {
+            private Border() {
             }
         }
 
-        HashMap<QuadEdge, Border> visited = new HashMap<>();
-        Stack<QuadEdge> unchecked = new Stack<>();
-        unchecked.add((QuadEdge) div.getEdges().iterator().next());
-        while (!unchecked.empty()) {
-            QuadEdge edge = unchecked.pop();
-            if (visited.containsKey(edge)) {
-                continue;
+        List<ParticleModel.ConvexBox> triangles = new ArrayList<>();
+
+        final boolean useEarcutter = true;
+        if (useEarcutter) {
+            //Using the earcurrent method, i can't find any maven package that does this, only one
+            //github repo that i copied over to mxb.jts.triangulate
+
+            List<Polygon> polys = new ArrayList<>();
+            if (combined instanceof Polygon) {
+                polys.add((Polygon) combined);
             }
-
-            QuadEdge start = edge;
-            List<QuadEdge> edges = new ArrayList<>();
-            List<Coordinate> points = new ArrayList<>();
-            do {
-                edges.add(edge);
-                points.add(edge.orig().getCoordinate());
-                edge = edge.dNext().sym();
-            }
-            while (edge != start);
-
-
-            ParticleModel.ConvexBox triangle = new ParticleModel.ConvexBox(points.toArray(new Coordinate[0]));
-            Point center = new Point(new CoordinateArraySequence(new Coordinate[]{triangle.center}), new GeometryFactory());
-            boolean valid = triangle.volume > 0 && combined.contains(center);
-
-            for (int i = 0; i < edges.size(); i++) {
-                QuadEdge subedge = edges.get(i);
-                visited.put(subedge, valid ? new Border(triangle, i, subedge) : new Border());
-                Border other = visited.getOrDefault(subedge.sym(), null);
-                if (other == null) {
-                    unchecked.add(subedge.sym());
-                } else if (valid && other.box != null) {
-                    other.box.neighbours[other.index] = triangle;
-                    triangle.neighbours[i] = other.box;
+            if (combined instanceof MultiPolygon) {
+                MultiPolygon multipoly = (MultiPolygon) combined;
+                for (int i = 0; i < multipoly.getNumGeometries(); i++) {
+                    polys.add((Polygon) multipoly.getGeometryN(i));
                 }
             }
 
-            if (valid) {
-                triangles.add(triangle);
+
+            List<Polygon> subPolygons = new ArrayList<>();
+            for (Polygon poly : polys) {
+                EarClipper clipper = new EarClipper(poly);
+                GeometryCollection res = (GeometryCollection) clipper.getResult();
+                for (int i = 0; i < res.getNumGeometries(); i++) {
+                    subPolygons.add((Polygon) res.getGeometryN(i));
+                }
+            }
+
+            HashMap<Coordinate, List<ParticleModel.ConvexBox>> vertices = new HashMap<>();
+            for (Polygon poly : subPolygons) {
+                Coordinate[] coords = poly.getCoordinates();
+                coords = Arrays.copyOf(coords, coords.length - 1);
+                ParticleModel.ConvexBox box = new ParticleModel.ConvexBox(coords);
+                for (Coordinate coord : coords) {
+                    List<ParticleModel.ConvexBox> boxes = vertices.getOrDefault(coord, null);
+                    if (boxes == null) {
+                        boxes = new ArrayList<>();
+                        vertices.put(coord, boxes);
+                    }
+                    boxes.add(box);
+                }
+                triangles.add(box);
+            }
+            for (ParticleModel.ConvexBox box : triangles) {
+                List<ParticleModel.ConvexBox> current = vertices.get(box.points[0]);
+                for (int i = 0; i < box.points.length; i++) {
+                    int nextindex = (i + 1) % box.points.length;
+                    List<ParticleModel.ConvexBox> next = vertices.get(box.points[nextindex]);
+                    for (ParticleModel.ConvexBox otherbox : current) {
+                        if (otherbox == box) {
+                            continue;
+                        }
+                        if (next.contains(otherbox)) {
+                            box.neighbours[i] = otherbox;
+                            int otherindex = Arrays.asList(otherbox.points).indexOf(box.points[nextindex]);
+                            otherbox.neighbours[otherindex] = box;
+                        }
+                    }
+                    current = next;
+                }
+            }
+        } else {
+            //Alternative method using "Conforming Delaunay Triangulation" This method apparently
+            //has some good mathematical properties but creates way more polygons than necessary
+            ConformingDelaunayTriangulationBuilder b = new ConformingDelaunayTriangulationBuilder();
+            b.setSites(combined);
+            b.setConstraints(combined);
+            QuadEdgeSubdivision div = b.getSubdivision();
+
+            HashMap<QuadEdge, Border> visited = new HashMap<>();
+            Stack<QuadEdge> unchecked = new Stack<>();
+            unchecked.add((QuadEdge) div.getEdges().iterator().next());
+            while (!unchecked.empty()) {
+                QuadEdge edge = unchecked.pop();
+                if (visited.containsKey(edge)) {
+                    continue;
+                }
+
+                QuadEdge start = edge;
+                List<QuadEdge> edges = new ArrayList<>();
+                List<Coordinate> points = new ArrayList<>();
+                do {
+                    edges.add(edge);
+                    points.add(edge.orig().getCoordinate());
+                    edge = edge.dNext().sym();
+                }
+                while (edge != start);
+
+
+                ParticleModel.ConvexBox triangle = new ParticleModel.ConvexBox(points.toArray(new Coordinate[0]));
+                Point center = new Point(new CoordinateArraySequence(new Coordinate[]{triangle.center}), new GeometryFactory());
+                boolean valid = triangle.volume > 0 && combined.contains(center);
+
+                for (int i = 0; i < edges.size(); i++) {
+                    QuadEdge subedge = edges.get(i);
+                    visited.put(subedge, valid ? new Border(triangle, i) : new Border());
+                    Border other = visited.getOrDefault(subedge.sym(), null);
+                    if (other == null) {
+                        unchecked.add(subedge.sym());
+                    } else if (valid && other.box != null) {
+                        other.box.neighbours[other.index] = triangle;
+                        triangle.neighbours[i] = other.box;
+                    }
+                }
+
+                if (valid) {
+                    triangles.add(triangle);
+                }
             }
         }
         return triangles;
@@ -122,11 +184,7 @@ public class Floorplan {
     }
 
     public void elementsChanged() {
-        this.obstacles = elements.stream()
-                .filter(obst -> obst instanceof FloorObstacle)
-                .map(FloorObstacle.class::cast)
-                .collect(Collectors.toList());
-        walkable = getWalkable();
+        //TODO implement observer pattern?
     }
 
     public List<FloorElement> getElements() {
@@ -177,19 +235,6 @@ public class Floorplan {
     void render(Canvas canvas) {
         for (Floorplan.FloorElement el : elements) {
             el.render(canvas);
-        }
-        Paint paint = new Paint();
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(0.02f);
-        paint.setARGB(255, 255, 0, 0);
-        for (ParticleModel.ConvexBox box : walkable) {
-            Path p = new Path();
-            p.moveTo((float) box.points[0].x, (float) box.points[0].y);
-            for (int i = 1; i < box.points.length; i++) {
-                p.lineTo((float) box.points[i].x, (float) box.points[i].y);
-            }
-            p.close();
-            canvas.drawPath(p, paint);
         }
     }
 
