@@ -60,7 +60,7 @@ public class FloorplanFragment extends Fragment {
         particlesButton.setOnClickListener(btn -> {
             Floorplan map = floorview.getFloorplan();
             model.setBoxes(map.getWalkable());
-            model.spawnParticles(1000000);
+            model.spawnParticles(10000);
             floorview.invalidate();
         });
 
