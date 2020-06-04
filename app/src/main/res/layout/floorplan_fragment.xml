@@ -1,66 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-
-    <Button
-        android:id="@+id/floorplanEditButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginBottom="16dp"
-        android:text="Edit"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
-        android:id="@+id/floorplanSaveButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:text="Save"
-        app:layout_constraintBottom_toBottomOf="@+id/floorplanEditButton"
-        app:layout_constraintStart_toEndOf="@+id/floorplanEditButton" />
-
-    <Button
-        android:id="@+id/floorplanLoadButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:text="Load"
-        app:layout_constraintBottom_toBottomOf="@+id/floorplanSaveButton"
-        app:layout_constraintStart_toEndOf="@+id/floorplanSaveButton" />
-
-    <Button
-        android:id="@+id/floorplanAddRectButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:text="Add Rect"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <Button
-        android:id="@+id/floorplanParticlesButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:text="Particles"
-        app:layout_constraintStart_toEndOf="@+id/floorplanAddRectButton"
-        app:layout_constraintTop_toTopOf="@+id/floorplanAddRectButton" />
-    <Button
-        android:id="@+id/floorplanSimButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:text="Move"
-        app:layout_constraintStart_toEndOf="@+id/floorplanParticlesButton"
-        app:layout_constraintTop_toTopOf="@+id/floorplanAddRectButton" />
 
     <com.tudelft.smartphonesensing.FloorplanView
         android:id="@+id/floorplanView"
@@ -72,6 +16,68 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="1.0" />
+
+    <Button
+        android:id="@+id/floorplanEditButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="Edit"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/floorplanParticlesButton"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/floorplanParticlesButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Particles"
+        app:layout_constraintBottom_toBottomOf="@+id/floorplanEditButton"
+        app:layout_constraintEnd_toStartOf="@+id/floorplanSaveButton"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/floorplanEditButton" />
+
+    <Button
+        android:id="@+id/floorplanSaveButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Save"
+        app:layout_constraintBottom_toBottomOf="@+id/floorplanParticlesButton"
+        app:layout_constraintEnd_toStartOf="@+id/floorplanLoadButton"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/floorplanParticlesButton" />
+
+    <Button
+        android:id="@+id/floorplanLoadButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Load"
+        app:layout_constraintBottom_toBottomOf="@+id/floorplanSaveButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/floorplanSaveButton" />
+
+    <Button
+        android:id="@+id/floorplanAddRectButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:text="Add Rect"
+        android:visibility="invisible"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/floorplanSimButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="Simulate"
+        app:layout_constraintStart_toEndOf="@+id/floorplanAddRectButton"
+        app:layout_constraintTop_toTopOf="@+id/floorplanAddRectButton"
+        tools:visibility="invisible" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

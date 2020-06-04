@@ -5,7 +5,6 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.os.Handler;
@@ -19,14 +18,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class FloorplanView extends View {
+    enum SelectionMode {VIEWING, EDITING, PARTICLES}
+
+    SelectionMode selectionMode = SelectionMode.VIEWING;
     Floorplan floorplan;
     ParticleModel particleModel;
-    boolean editing = false;
-    //TODO remove sim
     boolean simulating = false;
     float viewportWidthMeters = 5;
     PointF viewportCenter = new PointF(0, 0);
-    float rotation = 0;
     Floorplan.FloorEditable selectedElement = null;
     Matrix floorTransform = new Matrix();
     Matrix floorTransformInverse = new Matrix();
@@ -41,14 +40,19 @@ public class FloorplanView extends View {
         init();
     }
 
-    public void setEditing(boolean editing) {
-        this.editing = editing;
-        this.selectedElement = null;
-        this.invalidate();
+    public void setSelectionMode(SelectionMode selectionMode) {
+        this.selectionMode = selectionMode;
+        if (selectionMode != SelectionMode.EDITING) {
+            selectedElement = null;
+        }
+        if (selectionMode != SelectionMode.PARTICLES) {
+            simulating = false;
+        }
+        invalidate();
     }
 
-    public void setSimulating(boolean simulating) {
-        this.simulating = simulating;
+    public SelectionMode getSelectionMode() {
+        return selectionMode;
     }
 
     public Floorplan getFloorplan() {
@@ -57,6 +61,14 @@ public class FloorplanView extends View {
 
     public ParticleModel getParticleModel() {
         return this.particleModel;
+    }
+
+    public boolean getSimulating() {
+        return this.simulating;
+    }
+
+    public void setSimulating(boolean simulating) {
+        this.simulating = simulating;
     }
 
     public void setFloorplan(Floorplan floorplan) {
@@ -69,18 +81,11 @@ public class FloorplanView extends View {
         this.particleModel = particleModel;
     }
 
-    boolean getEditing() {
-        return this.editing;
-    }
-
-    boolean getSimulating() {
-        return simulating;
-    }
-
-    void addRectangleObstacle(float x, float y) {
+    void addRectangleObstacle() {
         Floorplan.RectangleObstacle el = new Floorplan.RectangleObstacle();
-        el.setArea(new RectF(x - 0.5f, x - 0.5f, x + 0.5f, x + 0.5f));
+        el.setArea(new RectF(viewportCenter.x - 0.5f, viewportCenter.y - 0.5f, viewportCenter.x + 0.5f, viewportCenter.y + 0.5f));
         floorplan.addElement(el);
+        selectedElement = el;
         invalidate();
     }
 
@@ -114,9 +119,11 @@ public class FloorplanView extends View {
             ScaleGestureDetector pinchDetect = new ScaleGestureDetector(getContext(), new ScaleGestureDetector.SimpleOnScaleGestureListener() {
                 public boolean onScale(ScaleGestureDetector detector) {
                     if (selectedElement != null) {
-                        float[] points = new float[]{0, 0, detector.getCurrentSpanX(), detector.getCurrentSpanY(), detector.getPreviousSpanX(), detector.getPreviousSpanY()};
+                        float[] points = new float[]{0, 0, detector.getCurrentSpanX() - detector.getPreviousSpanX(), detector.getCurrentSpanY() - detector.getPreviousSpanY()};
                         floorTransformInverse.mapPoints(points);
-                        selectedElement.editScale(points[2] - points[4], points[3] - points[5]);
+                        //had to hard-code flipped y here because of the logical vs screen coords y flip
+                        //not sure how to make the matrix do this flip
+                        selectedElement.editScale(points[2] - points[0], -(points[3] - points[1]));
                         invalidate();
                     } else {
                         viewportWidthMeters /= detector.getScaleFactor();
@@ -164,7 +171,7 @@ public class FloorplanView extends View {
                 if (e.getAction() == MotionEvent.ACTION_UP) {
                     downcount--;
                     if (downcount == 0) {
-                        if (editing) {
+                        if (selectionMode == SelectionMode.EDITING) {
                             if (didmoveaction) {
                                 floorplan.elementsChanged();
                                 invalidate();
@@ -248,7 +255,7 @@ public class FloorplanView extends View {
         floorTransformInverse.mapPoints(pts);
         float dx = pts[2] - pts[0];
         float dy = pts[3] - pts[1];
-        if (simulating && particleModel != null) {
+        if (selectionMode == SelectionMode.PARTICLES && simulating && particleModel != null) {
             particleModel.move(-dx, -dy);
             invalidate();
         } else if (selectedElement != null) {
@@ -290,7 +297,7 @@ public class FloorplanView extends View {
             highlight.setStyle(Paint.Style.STROKE);
             canvas.drawPath(selectedElement.getContour(), highlight);
         }
-        if (particleModel != null) {
+        if (selectionMode == SelectionMode.PARTICLES && particleModel != null) {
             particleModel.render(canvas);
         }
 
