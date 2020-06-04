@@ -3,12 +3,9 @@ package com.tudelft.smartphonesensing;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
-import android.util.Log;
-import android.widget.Toast;
-
-import androidx.room.Room;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -139,13 +136,19 @@ public class Bayes {
         //it will break when a different normalisation is used than 0-10
         final double minimalP = 0.1;
 
-        for (ScanResult scan : scanResults) {
+        //TODO: Find good threshold value to use
+        final double threshold= 0.7;
+        //sort here and do iterations
+        Collections.sort(scanResults,(o1, o2) -> o1.level - o2.level);
+        outerLoop: for (ScanResult scan : scanResults) {
             long curMAC = Util.macStringToLong(scan.BSSID);
             double curLevel = wifiManager.calculateSignalLevel(scan.level, 10);
 
             for (cellCandidate cand : candidateList) {
                 double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));
                 cand.probability *= sampledP;
+                if(cand.probability>threshold)
+                    break outerLoop;
             }
         }
 
