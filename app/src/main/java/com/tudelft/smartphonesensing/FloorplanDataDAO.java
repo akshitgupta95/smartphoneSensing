@@ -44,7 +44,7 @@ public interface FloorplanDataDAO {
         private String layoutJson;
 
         Floorplan getFloorplan() {
-            Floorplan floor = new Floorplan(name);
+            Floorplan floor = new Floorplan();
             try {
                 JSONObject obj = new JSONObject(layoutJson);
                 floor.deserialize(obj);
