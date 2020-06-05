@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 public class FloorplanFragment extends Fragment {
@@ -56,16 +57,30 @@ public class FloorplanFragment extends Fragment {
         particlesButton.setOnClickListener(btn -> clickMode.accept(FloorplanView.SelectionMode.PARTICLES));
 
         saveButton.setOnClickListener(btn -> {
-            AppDatabase db = AppDatabase.getInstance(getContext());
-            FloorplanMetaDAO.FloorplanMeta meta = new FloorplanMetaDAO.FloorplanMeta();
-            meta.setFloorplan(floorview.getFloorplan());
-            db.floorplanMetaDAO().InsertAll(meta);
+            Util.showTextDialog(getContext(), "Save floorplan as", floorview.getFloorplanName(), (name) -> {
+                if (name != null) {
+                    if (!name.equals(floorview.getFloorplanName())) {
+                        floorview.setFloorplan(floorview.getFloorplan(), name);
+                    }
+                    AppDatabase db = AppDatabase.getInstance(getContext());
+                    FloorplanDataDAO.FloorplanData floordata = new FloorplanDataDAO.FloorplanData();
+                    floordata.setFloorplan(floorview.getFloorplan(), floorview.getFloorplanName());
+                    //TODO do something with id here, currently saving a seperate version every time
+                    //use name as primary key?
+                    db.floorplanDataDAO().InsertAll(floordata);
+                }
+            });
         });
 
         loadButton.setOnClickListener(btn -> {
             AppDatabase db = AppDatabase.getInstance(getContext());
-            FloorplanMetaDAO.FloorplanMeta meta = db.floorplanMetaDAO().getLast();
-            floorview.setFloorplan(meta.getFloorplan());
+            List<FloorplanDataDAO.FloorplanMeta> meta = db.floorplanDataDAO().getAllNames();
+
+            String[] names = meta.stream().map(e -> e.name == null ? "no name" : e.name).toArray(String[]::new);
+            Util.showDropdownSpinner(getContext(), "Open floorplan", names, index -> {
+                FloorplanDataDAO.FloorplanMeta choice = meta.get(index);
+                floorview.setFloorplan(db.floorplanDataDAO().getById(choice.id).getFloorplan(), choice.name);
+            });
         });
 
         simButton.setOnClickListener(btn -> {

@@ -13,18 +13,38 @@ import org.json.JSONObject;
 import java.util.List;
 
 @Dao
-public interface FloorplanMetaDAO {
+public interface FloorplanDataDAO {
+
+    @Query("SELECT id,name FROM FloorplanData")
+    List<FloorplanMeta> getAllNames();
+
+    @Query("SELECT * FROM FloorplanData WHERE id=:id")
+    FloorplanData getById(int id);
+
+    @Insert
+    void InsertAll(FloorplanData... floorplans);
+
+    class FloorplanMeta {
+        @ColumnInfo()
+        public int id;
+
+        @ColumnInfo()
+        public String name;
+    }
 
     @Entity
-    public static class FloorplanMeta {
+    class FloorplanData {
         @PrimaryKey(autoGenerate = true)
         private int id;
 
-        @ColumnInfo(name = "layoutJson")
+        @ColumnInfo()
+        private String name;
+
+        @ColumnInfo()
         private String layoutJson;
 
         Floorplan getFloorplan() {
-            Floorplan floor = new Floorplan();
+            Floorplan floor = new Floorplan(name);
             try {
                 JSONObject obj = new JSONObject(layoutJson);
                 floor.deserialize(obj);
@@ -35,9 +55,10 @@ public interface FloorplanMetaDAO {
             return floor;
         }
 
-        void setFloorplan(Floorplan floor) {
+        void setFloorplan(Floorplan floor, String name) {
             try {
                 layoutJson = floor.serialize().toString();
+                this.name = name;
             } catch (JSONException err) {
                 //TODO add toast message+clean up data
             }
@@ -58,12 +79,13 @@ public interface FloorplanMetaDAO {
         public void setId(int id) {
             this.id = id;
         }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
     }
-
-    //TODO add ui and stuff so we don't need "getlast" but get using name/id instead
-    @Query("SELECT * FROM FloorplanMeta ORDER BY id DESC LIMIT 1")
-    FloorplanMeta getLast();
-
-    @Insert
-    void InsertAll(FloorplanMeta... floorplans);
 }

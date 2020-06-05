@@ -22,6 +22,7 @@ public class FloorplanView extends View {
 
     SelectionMode selectionMode = SelectionMode.VIEWING;
     Floorplan floorplan;
+    String floorplanName;
     ParticleModel particleModel;
     boolean simulating = false;
     float viewportWidthMeters = 5;
@@ -59,6 +60,10 @@ public class FloorplanView extends View {
         return this.floorplan;
     }
 
+    public String getFloorplanName() {
+        return this.floorplanName;
+    }
+
     public ParticleModel getParticleModel() {
         return this.particleModel;
     }
@@ -71,8 +76,9 @@ public class FloorplanView extends View {
         this.simulating = simulating;
     }
 
-    public void setFloorplan(Floorplan floorplan) {
+    public void setFloorplan(Floorplan floorplan, String name) {
         this.floorplan = floorplan;
+        this.floorplanName = name;
         selectedElement = null;
         invalidate();
     }

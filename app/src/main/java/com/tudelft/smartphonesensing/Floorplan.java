@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 import mxb.jts.triangulate.EarClipper;
 
 public class Floorplan {
-    List<FloorElement> elements = new ArrayList<>();
+    private List<FloorElement> elements = new ArrayList<>();
 
     static final String ELEMENT_POLYGON = "poly";
     static final String ELEMENT_RECTANGLE = "rectangle";

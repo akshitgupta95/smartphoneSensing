@@ -1,5 +1,13 @@
 package com.tudelft.smartphonesensing;
 
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.text.InputType;
+import android.widget.EditText;
+
+import java.util.function.Consumer;
+
 public class Util {
 
     static long macStringToLong(String mac) {
@@ -76,7 +84,38 @@ public class Util {
         double negb = 1 / det * (-d2x) * diffvx + 1 / det * d1x * diffvy;
         return new double[]{a, -negb};
     }
+
+    public static void showTextDialog(Context context, String title, String initialValue, Consumer<String> onclose) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle(title);
+
+        final EditText input = new EditText(context);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        input.setText(initialValue);
+        builder.setView(input);
+
+        // Set up the buttons
+        builder.setPositiveButton("OK", (dialog, which) -> {
+            onclose.accept(input.getText().toString());
+        });
+        builder.setNegativeButton("Cancel", (dialog, which) -> {
+            dialog.cancel();
+        });
+        builder.show();
+    }
+
+    public static void showDropdownSpinner(Context context, String title, String[] options, Consumer<Integer> onclose) {
+        AlertDialog.Builder b = new AlertDialog.Builder(context);
+
+        b.setTitle(title);
+        b.setItems(options, (DialogInterface dialog, int which) -> {
+            dialog.dismiss();
+            onclose.accept(which);
+        });
+        b.show();
+    }
 }
+
 
 
 

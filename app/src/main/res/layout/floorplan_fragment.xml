@@ -75,9 +75,9 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:text="Simulate"
+        android:visibility="invisible"
         app:layout_constraintStart_toEndOf="@+id/floorplanAddRectButton"
-        app:layout_constraintTop_toTopOf="@+id/floorplanAddRectButton"
-        tools:visibility="invisible" />
+        app:layout_constraintTop_toTopOf="@+id/floorplanAddRectButton" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
