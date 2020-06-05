@@ -8,6 +8,11 @@
         android:icon="@android:drawable/ic_input_add"
         android:title="Collect Data"/>
     <item
+        android:id="@+id/navigation_floorplan"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_mapmode"
+        android:title="Floor plan" />
+    <item
         android:id="@+id/navigation_test"
         android:enabled="true"
         android:icon="@android:drawable/ic_menu_mylocation"

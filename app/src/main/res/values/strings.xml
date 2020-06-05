@@ -1,4 +1,26 @@
 <resources>
     <string name="app_name">Indoor Localisation</string>
     <string name="fabtext">SCAN WIFI</string>
+
+    <string name="default_floorplan_json">
+{
+  "children": [
+    {
+      "left": 0,
+      "top": 0,
+      "right": 1,
+      "bottom": 1,
+      "type": "rectangle"
+    },
+    {
+      "left": 0.5,
+      "top": 0.5,
+      "right": 1.5,
+      "bottom": 1.5,
+      "type": "rectangle"
+    }
+      ],
+  "type": "floorplan"
+}
+    </string>
 </resources>

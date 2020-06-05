@@ -66,10 +66,9 @@
 
     <TextView
         android:id="@+id/locateDebugOutput"
-        android:layout_width="393dp"
-        android:layout_height="265dp"
+        android:layout_width="381dp"
+        android:layout_height="134dp"
         android:layout_below="@+id/text_title"
         android:layout_marginTop="30dp" />
-
 
 </RelativeLayout>
