@@ -105,11 +105,38 @@ public class Bayes {
             LocationMacTable subtable = new LocationMacTable(location);
             for (Long mac : locMacs) {
                 List<Scan> macAppearences = db.scanDAO().getAllScansWithMacAndLocation(location, mac);
+                //alphatrim here
+                macAppearences=alphatrim(macAppearences);
                 subtable.addMacData(mac, macAppearences);
             }
             locationMacTables.add(subtable);
         }
     }
+
+    private  List<Scan> alphatrim(List<Scan> signal) {
+        final int windowSize=5;
+        int start = 1;
+        int end=3;
+        List<Scan> result=new ArrayList<>();
+        if(signal.size()<6)
+            return signal;
+        for (int i = 2; i < signal.size() - 2; ++i)
+        {
+            //   Pick up window elements
+            ArrayList<Scan> window=new ArrayList<>();
+            for (int j = 0; j < 5; ++j)
+                window.add( signal.get(i - 2 + j));
+            Collections.sort(window,(o1, o2) -> Double.compare(o1.getLevel(),o2.getLevel()));
+
+            //   Get result - the mean value of the elements in trimmed set
+            int sum=1;
+            for (int j = start ; j < end; ++j)
+                sum += window.get(j).getLevel();
+            result.get(i - 2).setLevel(sum/5.0);
+        }
+        return result;
+    }
+
 
     public static class cellCandidate {
         double probability;
@@ -145,7 +172,7 @@ public class Bayes {
             double curLevel = wifiManager.calculateSignalLevel(scan.level, 10);
 
             for (cellCandidate cand : candidateList) {
-                double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));
+                double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC,curLevel));
                 cand.probability *= sampledP;
                 if(cand.probability>threshold)
                     break outerLoop;

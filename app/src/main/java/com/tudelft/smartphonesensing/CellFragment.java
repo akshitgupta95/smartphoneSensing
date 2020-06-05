@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class CellFragment extends Fragment {
@@ -141,13 +140,16 @@ public class CellFragment extends Fragment {
                 .build();
 
         for (ScanResult scanResult : results) {
+            //TODO: Improve the normalisation technique
             int normlevel = WifiManager.calculateSignalLevel(scanResult.level, 10);
+            //TODO: only store gaussian mean and std in DB
             Scan result = new Scan(Util.macStringToLong(scanResult.BSSID), scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell, scanResult.timestamp);
             db.scanDAO().InsertAll(result);
             Log.v("DB", "Added scan: " + result);
         }
         drawSignaldata();
     }
+
 
     private void onScanFinished(List<List<ScanResult>> allresults) {
         activeScan = null;
