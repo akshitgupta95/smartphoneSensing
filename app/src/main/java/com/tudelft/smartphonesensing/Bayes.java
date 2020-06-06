@@ -114,25 +114,27 @@ public class Bayes {
     }
 
     private  List<Scan> alphatrim(List<Scan> signal) {
-        final int windowSize=5;
+
         int start = 1;
-        int end=3;
+        int end=4;
         List<Scan> result=new ArrayList<>();
-        if(signal.size()<6)
+        if(signal.size()<6) //our window size is 5
             return signal;
         for (int i = 2; i < signal.size() - 2; ++i)
         {
             //   Pick up window elements
             ArrayList<Scan> window=new ArrayList<>();
             for (int j = 0; j < 5; ++j)
-                window.add( signal.get(i - 2 + j));
+                window.add(signal.get(i - 2 + j));
             Collections.sort(window,(o1, o2) -> Double.compare(o1.getLevel(),o2.getLevel()));
 
             //   Get result - the mean value of the elements in trimmed set
-            int sum=1;
+            int sum=1;  //minimum normalised value
             for (int j = start ; j < end; ++j)
                 sum += window.get(j).getLevel();
-            result.get(i - 2).setLevel(sum/5.0);
+            Scan toAdd=window.get(0);//
+            toAdd.setLevel(sum/3.0);
+            result.add(toAdd);
         }
         return result;
     }
