@@ -1,8 +1,14 @@
 package com.tudelft.smartphonesensing;
 
+import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.SystemClock;
 import android.util.Log;
 
 import org.locationtech.jts.geom.Coordinate;
@@ -12,6 +18,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
+
+import static android.content.Context.SENSOR_SERVICE;
 
 public class ParticleModel {
     public static class ConvexBox {
@@ -119,6 +127,7 @@ public class ParticleModel {
         }
     }
 
+    private final Random rand = new Random();
     private double totalarea;
     private List<ConvexBox> boxes;
     private List<Particle> particles = new ArrayList<>();
@@ -133,13 +142,12 @@ public class ParticleModel {
     }
 
     public void spawnParticles(int n) {
-        Random rand = new Random();
         for (int i = 0; i < n; i++) {
-            particles.add(randomParticle(rand));
+            particles.add(randomParticle());
         }
     }
 
-    private Particle randomParticle(Random rand) {
+    private Particle randomParticle() {
         double p = rand.nextDouble() * totalarea;
         ConvexBox targetbox = boxes.get(0);
         for (ConvexBox box : boxes) {
@@ -154,7 +162,12 @@ public class ParticleModel {
 
     public void move(double dx, double dy) {
         //TODO implement resampling
-        particles = particles.stream().filter(p -> p.move(dx, dy)).collect(Collectors.toList());
+        for (int i = 0; i < particles.size(); i++) {
+            if (!particles.get(i).move(dx, dy)) {
+                particles.set(i, randomParticle());
+            }
+        }
+        //particles = particles.stream().filter(p -> p.move(dx, dy)).collect(Collectors.toList());
     }
 
     void render(Canvas canvas) {

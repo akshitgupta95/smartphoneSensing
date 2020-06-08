@@ -7,7 +7,12 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PointF;
 import android.graphics.RectF;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -16,6 +21,8 @@ import android.view.View;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import static android.content.Context.SENSOR_SERVICE;
 
 public class FloorplanView extends View {
     enum SelectionMode {VIEWING, EDITING, PARTICLES}
@@ -191,7 +198,7 @@ public class FloorplanView extends View {
                 return true;
             }
         });
-
+        trackMotion(getContext());
     }
 
     void onClick(float x, float y) {
@@ -254,6 +261,34 @@ public class FloorplanView extends View {
         void stop() {
             animstart = 0;
         }
+    }
+
+    public void trackMotion(Context ctx) {
+        SensorManager sensorMan = (SensorManager) ctx.getSystemService(SENSOR_SERVICE);
+        Sensor accelerometer = sensorMan.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        sensorMan.registerListener(new SensorEventListener() {
+            double velx = 0, vely = 0;
+            long lastTick = SystemClock.elapsedRealtimeNanos();
+            final double decayat1sec = 0.8;
+
+            @Override
+            public void onSensorChanged(SensorEvent event) {
+                double step = (event.timestamp - lastTick) / 1e9;
+                lastTick = event.timestamp;
+                particleModel.move(velx * step, vely * step);
+                velx += event.values[0] * step;
+                vely += event.values[1] * step;
+                double decay = Math.log(decayat1sec) * step;
+                velx *= 1 + decay;
+                vely *= 1 + decay;
+                //particleModel.move((double) event.values[0] / 2, (double) event.values[1] / 2);
+                invalidate();
+            }
+
+            @Override
+            public void onAccuracyChanged(Sensor sensor, int accuracy) {
+            }
+        }, accelerometer, SensorManager.SENSOR_DELAY_GAME);
     }
 
     void dragmove(float dxpx, float dypx, boolean isfling) {
