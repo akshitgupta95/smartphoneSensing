@@ -132,7 +132,7 @@ public class CellFragment extends Fragment {
         return inflater.inflate(R.layout.cell_fragment, container, false);
     }
 
-    private List<ScanResult> oldResults;
+    private List<ScanResult> oldResults=new ArrayList<>();
 
     private void onScan(List<ScanResult> results) {
         scanProgressbar.setProgress(activeScan.getProgress(), true);
@@ -158,17 +158,18 @@ public class CellFragment extends Fragment {
 
     private boolean checkUnique(List<ScanResult> results){
         boolean isUnique=false;
+        if(oldResults.size()==0 || oldResults.size()!=results.size())
+            return true;
         for(int i=0;i<results.size();i++){
             //either bssid or level is different
             if(!results.get(i).BSSID.equals(oldResults.get(i).BSSID)){
                 isUnique=true;
             }
-            else if(results.get(i).level != oldResults.get(i).level){
+            if(results.get(i).level != oldResults.get(i).level){
                 isUnique=true;
             }
         }
         return isUnique;
-
     }
 
 
