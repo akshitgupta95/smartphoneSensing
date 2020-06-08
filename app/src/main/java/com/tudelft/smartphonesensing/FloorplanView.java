@@ -14,6 +14,7 @@ import android.hardware.SensorManager;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -270,17 +271,21 @@ public class FloorplanView extends View {
             double velx = 0, vely = 0;
             long lastTick = SystemClock.elapsedRealtimeNanos();
             final double decayat1sec = 0.8;
+            final double decayat1secstill = 0.1;
 
             @Override
             public void onSensorChanged(SensorEvent event) {
                 double step = (event.timestamp - lastTick) / 1e9;
+                double norm = Math.sqrt(event.values[0] * event.values[0] + event.values[1] * event.values[1] + event.values[2] * event.values[2]);
                 lastTick = event.timestamp;
                 particleModel.move(velx * step, vely * step);
                 velx += event.values[0] * step;
                 vely += event.values[1] * step;
-                double decay = Math.log(decayat1sec) * step;
+                double decayfactor=norm<1.0?decayat1secstill:decayat1sec;
+                double decay = Math.log(decayfactor) * step;
                 velx *= 1 + decay;
                 vely *= 1 + decay;
+                Log.i("acc", String.format("%.3f", norm));
                 //particleModel.move((double) event.values[0] / 2, (double) event.values[1] / 2);
                 invalidate();
             }
