@@ -3,12 +3,9 @@ package com.tudelft.smartphonesensing;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
-import android.util.Log;
-import android.widget.Toast;
-
-import androidx.room.Room;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,11 +105,40 @@ public class Bayes {
             LocationMacTable subtable = new LocationMacTable(location);
             for (Long mac : locMacs) {
                 List<Scan> macAppearences = db.scanDAO().getAllScansWithMacAndLocation(location, mac);
+                //alphatrim here
+                macAppearences=alphatrim(macAppearences);
                 subtable.addMacData(mac, macAppearences);
             }
             locationMacTables.add(subtable);
         }
     }
+
+    private  List<Scan> alphatrim(List<Scan> signal) {
+
+        int start = 1;
+        int end=4;
+        List<Scan> result=new ArrayList<>();
+        if(signal.size()<6) //our window size is 5
+            return signal;
+        for (int i = 2; i < signal.size() - 2; ++i)
+        {
+            //   Pick up window elements
+            ArrayList<Scan> window=new ArrayList<>();
+            for (int j = 0; j < 5; ++j)
+                window.add(signal.get(i - 2 + j));
+            Collections.sort(window,(o1, o2) -> Double.compare(o1.getLevel(),o2.getLevel()));
+
+            //   Get result - the mean value of the elements in trimmed set
+            int sum=1;  //minimum normalised value
+            for (int j = start ; j < end; ++j)
+                sum += window.get(j).getLevel();
+            Scan toAdd=window.get(0);//
+            toAdd.setLevel(sum/3.0);
+            result.add(toAdd);
+        }
+        return result;
+    }
+
 
     public static class cellCandidate {
         double probability;
@@ -139,13 +165,19 @@ public class Bayes {
         //it will break when a different normalisation is used than 0-10
         final double minimalP = 0.1;
 
-        for (ScanResult scan : scanResults) {
+        //TODO: Find good threshold value to use
+        final double threshold= 0.7;
+        //sort here and do iterations
+        Collections.sort(scanResults,(o1, o2) -> o1.level - o2.level);
+        outerLoop: for (ScanResult scan : scanResults) {
             long curMAC = Util.macStringToLong(scan.BSSID);
             double curLevel = wifiManager.calculateSignalLevel(scan.level, 10);
 
             for (cellCandidate cand : candidateList) {
-                double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));
+                double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC,curLevel));
                 cand.probability *= sampledP;
+                if(cand.probability>threshold)
+                    break outerLoop;
             }
         }
 

@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class CellFragment extends Fragment {
@@ -133,6 +132,8 @@ public class CellFragment extends Fragment {
         return inflater.inflate(R.layout.cell_fragment, container, false);
     }
 
+    private List<ScanResult> oldResults;
+
     private void onScan(List<ScanResult> results) {
         scanProgressbar.setProgress(activeScan.getProgress(), true);
 
@@ -140,14 +141,36 @@ public class CellFragment extends Fragment {
                 .allowMainThreadQueries()
                 .build();
 
-        for (ScanResult scanResult : results) {
-            int normlevel = WifiManager.calculateSignalLevel(scanResult.level, 10);
-            Scan result = new Scan(Util.macStringToLong(scanResult.BSSID), scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell, scanResult.timestamp);
-            db.scanDAO().InsertAll(result);
-            Log.v("DB", "Added scan: " + result);
+        if(checkUnique(results)) { //compare to previous results and see if any one elements differs
+            for (ScanResult scanResult : results) {
+                //TODO: Improve the normalisation technique
+                int normlevel = WifiManager.calculateSignalLevel(scanResult.level, 10);
+                //TODO: only store gaussian mean and std in DB
+                Scan result = new Scan(Util.macStringToLong(scanResult.BSSID), scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell, scanResult.timestamp);
+                db.scanDAO().InsertAll(result);
+                Log.v("DB", "Added scan: " + result);
+            }
+            oldResults = results;
+            drawSignaldata();
         }
-        drawSignaldata();
+
     }
+
+    private boolean checkUnique(List<ScanResult> results){
+        boolean isUnique=false;
+        for(int i=0;i<results.size();i++){
+            //either bssid or level is different
+            if(!results.get(i).BSSID.equals(oldResults.get(i).BSSID)){
+                isUnique=true;
+            }
+            else if(results.get(i).level != oldResults.get(i).level){
+                isUnique=true;
+            }
+        }
+        return isUnique;
+
+    }
+
 
     private void onScanFinished(List<List<ScanResult>> allresults) {
         activeScan = null;
