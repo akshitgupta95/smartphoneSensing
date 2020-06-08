@@ -40,6 +40,8 @@ public class BLEUtil {
 
     private String loc;
 
+    private boolean notificationFired = false;
+
 
     private ScanCallback mScanCallBack = new ScanCallback() {
         @Override
@@ -48,8 +50,14 @@ public class BLEUtil {
             if(result != null) {
                 String scannedLocation = new String(result.getScanRecord().getServiceData(result.getScanRecord().getServiceUuids().get(0)), Charset.forName("UTF-8"));
                 if(scannedLocation.equals(loc)){
-                    Toast.makeText(context, "Other phone detected in cell " + scannedLocation, Toast.LENGTH_SHORT).show();
+                    if(!notificationFired){
+                        notificationFired = true;
+                        Toast.makeText(context, result.getDevice().getAddress() +  " detected in cell " + scannedLocation, Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    notificationFired = false;
                 }
+                mBluetoothLEScanner.flushPendingScanResults(mScanCallBack);
             }
 
         }
@@ -98,7 +106,7 @@ public class BLEUtil {
         advertiser.stopAdvertising(mAdvertisingCallback);
 
         AdvertiseSettings settings = new AdvertiseSettings.Builder()
-                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
                 .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
                 .setConnectable(false)
                 .build();
