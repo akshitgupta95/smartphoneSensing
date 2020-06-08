@@ -7,7 +7,7 @@ android {
     defaultConfig {
         applicationId "com.tudelft.smartphonesensing"
         minSdkVersion 24
-        targetSdkVersion 29
+        targetSdkVersion 24
         versionCode 1
         versionName "1.0"
 

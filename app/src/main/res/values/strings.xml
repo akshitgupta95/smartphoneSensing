@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Indoor Localisation</string>
     <string name="fabtext">SCAN WIFI</string>
-
+  <string name="ble_uuid">00001234-0000-1000-8000-00805F9B34FB</string>
     <string name="default_floorplan_json">
 {
   "children": [

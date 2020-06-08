@@ -29,6 +29,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
     private WifiManager wifiManager;
     private List<ScanResult> results;
     private Bayes bayes;
+    private BLEUtil bleUtil;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -39,6 +40,9 @@ public class TestFragment extends Fragment implements View.OnClickListener {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         FloatingActionButton pred = (FloatingActionButton) getView().findViewById(R.id.pred);
         pred.setOnClickListener(this);
+        // TODO: start discovering
+        bleUtil = new BLEUtil(getActivity());
+        bleUtil.discover();
     }
 
     public void onClick(View v) {
@@ -81,7 +85,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
             Toast.makeText(this.getContext(), "Probability :" + best.probability, Toast.LENGTH_SHORT).show();
             TextView locationText = (TextView) getView().findViewById(R.id.text_loc);
             locationText.setText(best.macTable.location);
-
+            bleUtil.advertise(best.macTable.location);
             String debugtext = "";
             for (Bayes.cellCandidate cand : candidates) {
                 debugtext += String.format("%.4f %s\n", cand.probability, cand.macTable.location);
