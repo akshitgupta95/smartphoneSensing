@@ -88,7 +88,7 @@ public class CellFragment extends Fragment {
 
             //TODO rewrite this a bit and pre-allocate instead and pull the constants out
             List<DataPoint> linedata = new ArrayList<>();
-            for (double x = 0; x < 10; x += 0.05) {
+            for (double x = 0; x < 100; x += 0.05) {
                 linedata.add(new DataPoint(x, probs.sample(x)));
             }
             LineGraphSeries<DataPoint> line = new LineGraphSeries<DataPoint>(linedata.toArray(new DataPoint[0]));
@@ -132,7 +132,7 @@ public class CellFragment extends Fragment {
         return inflater.inflate(R.layout.cell_fragment, container, false);
     }
 
-    private List<ScanResult> oldResults=new ArrayList<>();
+    private List<ScanResult> oldResults = new ArrayList<>();
 
     private void onScan(List<ScanResult> results) {
         scanProgressbar.setProgress(activeScan.getProgress(), true);
@@ -141,32 +141,33 @@ public class CellFragment extends Fragment {
                 .allowMainThreadQueries()
                 .build();
 
-        if(checkUnique(results)) { //compare to previous results and see if any one elements differs
+        if (checkUnique(results)) { //compare to previous results and see if any one elements differs
             for (ScanResult scanResult : results) {
                 //TODO: Improve the normalisation technique
-                int normlevel = WifiManager.calculateSignalLevel(scanResult.level, 10);
+                int normlevel = WifiManager.calculateSignalLevel(scanResult.level, 46);
                 //TODO: only store gaussian mean and std in DB
                 Scan result = new Scan(Util.macStringToLong(scanResult.BSSID), scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell, scanResult.timestamp);
                 db.scanDAO().InsertAll(result);
                 Log.v("DB", "Added scan: " + result);
             }
-            oldResults = results;
+            if (results.size() > 0)
+                oldResults = results;
             drawSignaldata();
         }
 
     }
 
-    private boolean checkUnique(List<ScanResult> results){
-        boolean isUnique=false;
-        if(oldResults.size()==0 || oldResults.size()!=results.size())
+    private boolean checkUnique(List<ScanResult> results) {
+        boolean isUnique = false;
+        if (oldResults.size() == 0 || oldResults.size() != results.size())
             return true;
-        for(int i=0;i<results.size();i++){
+        for (int i = 0; i < results.size(); i++) {
             //either bssid or level is different
-            if(!results.get(i).BSSID.equals(oldResults.get(i).BSSID)){
-                isUnique=true;
+            if (!results.get(i).BSSID.equals(oldResults.get(i).BSSID)) { //android gives alphabetically sorted list always
+                isUnique = true;
             }
-            if(results.get(i).level != oldResults.get(i).level){
-                isUnique=true;
+            if (results.get(i).level != oldResults.get(i).level) {
+                isUnique = true;
             }
         }
         return isUnique;
