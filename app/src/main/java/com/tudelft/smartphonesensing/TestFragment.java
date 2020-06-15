@@ -22,6 +22,8 @@ import androidx.fragment.app.Fragment;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import org.dpppt.android.sdk.DP3T;
+
 import java.util.List;
 
 public class TestFragment extends Fragment implements View.OnClickListener {
@@ -40,9 +42,10 @@ public class TestFragment extends Fragment implements View.OnClickListener {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         FloatingActionButton pred = (FloatingActionButton) getView().findViewById(R.id.pred);
         pred.setOnClickListener(this);
-        // TODO: start discovering
-        bleUtil = new BLEUtil(getActivity());
-        bleUtil.discover();
+        // Start DP3T
+        DP3T.start(getActivity().getApplicationContext());
+//        bleUtil = new BLEUtil(getActivity());
+//        bleUtil.discover();
     }
 
     public void onClick(View v) {
@@ -85,7 +88,9 @@ public class TestFragment extends Fragment implements View.OnClickListener {
             Toast.makeText(this.getContext(), "Probability :" + best.probability, Toast.LENGTH_SHORT).show();
             TextView locationText = (TextView) getView().findViewById(R.id.text_loc);
             locationText.setText(best.macTable.location);
-            bleUtil.advertise(best.macTable.location);
+            // TODO: we must change the location in DP3T
+
+            // bleUtil.advertise(best.macTable.location);
             String debugtext = "";
             for (Bayes.cellCandidate cand : candidates) {
                 debugtext += String.format("%.4f %s\n", cand.probability, cand.macTable.location);

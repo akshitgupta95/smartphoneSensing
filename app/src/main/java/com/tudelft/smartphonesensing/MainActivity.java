@@ -48,7 +48,6 @@ public class MainActivity extends AppCompatActivity {
 
         initDP3T(this);
         DP3T.start(this);
-
     }
 
     public static void initDP3T(Context context) {

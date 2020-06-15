@@ -42,7 +42,7 @@ public class BLEUtil {
 
     private boolean notificationFired = false;
 
-
+    // TODO: Remove this as we use DP3T
     private ScanCallback mScanCallBack = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {

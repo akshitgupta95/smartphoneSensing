@@ -33,7 +33,9 @@ import org.dpppt.android.sdk.internal.database.Database;
 import org.dpppt.android.sdk.internal.database.models.Handshake;
 import org.dpppt.android.sdk.internal.logger.Logger;
 
+import static org.dpppt.android.sdk.internal.gatt.BleServer.LOC_UUID;
 import static org.dpppt.android.sdk.internal.gatt.BleServer.SERVICE_UUID;
+import static org.dpppt.android.sdk.internal.gatt.BleServer.getLocData;
 
 public class BleClient {
 
@@ -69,20 +71,19 @@ public class BleClient {
 				.setServiceUuid(new ParcelUuid(SERVICE_UUID))
 				.build());
 
-		// TODO: Do we need to add this as we are focusing on iOS.
+		// Enable if we want to add iOS
 		// Scan for Apple devices as iOS does not advertise service uuid when in background,
 		// but instead pushes it to the "overflow" area (manufacturer data). For now let's
 		// connect to all Apple devices until we find the algorithm used to put the service uuid
 		// into the manufacturer data
-		scanFilters.add(new ScanFilter.Builder()
-				.setManufacturerData(0x004c, new byte[0])
-				.build());
+		// scanFilters.add(new ScanFilter.Builder()
+		//		.setManufacturerData(0x004c, new byte[0])
+		//		.build());
 
-		// TODO: add new scanfilter that looks at the location thing
+		// Add scanfilter that looks at location UUID
 		scanFilters.add(new ScanFilter.Builder()
-						.setServiceUuid(/* Add parcelUuid for the location */)
-						.setServiceData().
-						.build())
+						.setServiceUuid(new ParcelUuid(LOC_UUID))
+						.build());
 
 		ScanSettings.Builder settingsBuilder = new ScanSettings.Builder()
 				.setScanMode(AppConfigManager.getInstance(context).getBluetoothScanMode().getSystemValue())
@@ -141,9 +142,6 @@ public class BleClient {
 				power = 12;
 			}
 
-			// TODO: find out what power is used for the handshake, we can remove this and add location to this.
-			// TODO: get Scan result and find out what the location, then we can continue with this stuff.
-
 			List<Handshake> handshakesForDevice = scanResultMap.get(deviceAddr);
 			if (handshakesForDevice == null) {
 				handshakesForDevice = new ArrayList<>();
@@ -154,19 +152,25 @@ public class BleClient {
 			boolean correctPayload = payload != null && payload.length == CryptoModule.EPHID_LENGTH;
 			Logger.d(TAG, "found " + deviceAddr + "; power: " + power + "; rssi: " + scanResult.getRssi() +
 					"; haspayload: " + correctPayload);
-			if (correctPayload) {
-				// if Android, optimize (meaning: send/read payload directly in the advertisement
-				Logger.i(TAG, "handshake with " + deviceAddr + " (servicedata payload)");
-				handshakesForDevice.add(createHandshake(new EphId(payload), scanResult, power));
-			} else {
-				if (handshakesForDevice.isEmpty()) {
-					gattConnectionThread.addTask(new GattConnectionTask(context, bluetoothDevice, scanResult,
-							(ephId, device) -> {
-								connectedEphIdMap.put(device.getAddress(), ephId);
-								Logger.i(TAG, "handshake with " + device.getAddress() + " (gatt connection)");
-							}));
+			// Check if correct location
+			byte[] loc = scanResult.getScanRecord().getServiceData(new ParcelUuid(SERVICE_UUID));
+			boolean correctLoc = loc != null && loc == getLocData();
+			Logger.d(TAG, "found another device at location " + loc.toString());
+			if(correctLoc) {
+				if (correctPayload) {
+					// if Android, optimize (meaning: send/read payload directly in the advertisement
+					Logger.i(TAG, "handshake with " + deviceAddr + " (servicedata payload)");
+					handshakesForDevice.add(createHandshake(new EphId(payload), scanResult, power));
+				} else {
+					if (handshakesForDevice.isEmpty()) {
+						gattConnectionThread.addTask(new GattConnectionTask(context, bluetoothDevice, scanResult,
+								(ephId, device) -> {
+									connectedEphIdMap.put(device.getAddress(), ephId);
+									Logger.i(TAG, "handshake with " + device.getAddress() + " (gatt connection)");
+								}));
+					}
+					handshakesForDevice.add(createHandshake(null, scanResult, power));
 				}
-				handshakesForDevice.add(createHandshake(null, scanResult, power));
 			}
 		} catch (Exception e) {
 			Logger.e(TAG, e);

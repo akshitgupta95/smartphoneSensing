@@ -30,7 +30,9 @@ public class BleServer {
 	private static final String TAG = "BleServer";
 
 	private static final String DP3T_16_BIT_UUID = "FD68";
+	private static final String LOC_16_BIT_UUID = "B434";
 	public static final UUID SERVICE_UUID = UUID.fromString("0000" + DP3T_16_BIT_UUID + "-0000-1000-8000-00805F9B34FB");
+	public static final UUID LOC_UUID = UUID.fromString("0000" + LOC_16_BIT_UUID + "-0000-1000-8000-00805F9B34FB");
 	public static final UUID TOTP_CHARACTERISTIC_UUID = UUID.fromString("8c8494e3-bab5-1848-40a0-1b06991c0001");
 
 	private final Context context;
@@ -99,14 +101,16 @@ public class BleServer {
 		advBuilder.setIncludeTxPowerLevel(true);
 		advBuilder.setIncludeDeviceName(false);
 		advBuilder.addServiceUuid(new ParcelUuid(SERVICE_UUID));
-		// TODO: Add service UUid for location stuff
+		// Adding service UUID for location stuff
+		advBuilder.addServiceUuid(new ParcelUuid(LOC_UUID));
 
 		if (appConfigManager.isScanResponseEnabled()) {
 			AdvertiseData.Builder scanResponse = new AdvertiseData.Builder();
 			scanResponse.setIncludeTxPowerLevel(false);
 			scanResponse.setIncludeDeviceName(false);
 			scanResponse.addServiceData(new ParcelUuid(SERVICE_UUID), getAdvertiseData());
-			// TODO: add location data to service UUid
+			// Adding location data to service UUID
+			scanResponse.addServiceData(new ParcelUuid(LOC_UUID), getLocData());
 			mLeAdvertiser.startAdvertising(settings, advBuilder.build(), scanResponse.build(), advertiseCallback);
 			Logger.d(TAG, "started advertising (with scanResponse), advertiseMode " + settings.getMode() + " powerLevel " +
 					settings.getTxPowerLevel());
@@ -118,6 +122,12 @@ public class BleServer {
 		}
 
 		return BluetoothState.ENABLED;
+	}
+
+	// TODO: Add location data over here
+	public static byte[] getLocData() {
+		byte[] locData = loc.getBytes(); // TODO get best.macTable.location
+		return locData;
 	}
 
 	public void stopAdvertising() {
