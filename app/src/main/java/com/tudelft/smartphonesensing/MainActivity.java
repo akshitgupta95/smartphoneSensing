@@ -1,5 +1,6 @@
 package com.tudelft.smartphonesensing;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
@@ -10,6 +11,11 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+
+import org.dpppt.android.sdk.DP3T;
+import org.dpppt.android.sdk.util.SignatureUtil;
+
+import java.security.PublicKey;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -39,6 +45,23 @@ public class MainActivity extends AppCompatActivity {
         fm.beginTransaction().add(R.id.main_container, floorplanFragment, "3").hide(floorplanFragment).commit();
         fm.beginTransaction().add(R.id.main_container, manageFragment, "1").commit();
         navView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
+
+        initDP3T(this);
+        DP3T.start(this);
+
+    }
+
+    public static void initDP3T(Context context) {
+        PublicKey publicKey = SignatureUtil.getPublicKeyFromBase64OrThrow(
+                "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0R" +
+                        "RZ0FFWTc3MFZEWjJlZjZCYjh0UXZYWVJpcUFaemtHLwpwNWs0U3pTV3FRY00zNzlqTVN6c3JOaU5nc0" +
+                        "hWZlRPeGFqMUFzQ3RrNmJVUDV1cDc3RU5nckVzVkh3PT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t");
+        DP3T.init(context, "com.tudelft.smartphonesensing", true, publicKey);
+
+//        CertificatePinner certificatePinner = new CertificatePinner.Builder()
+//                .add("demo.dpppt.org", "sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=")
+//                .build();
+//        DP3T.setCertificatePinner(certificatePinner);
     }
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener

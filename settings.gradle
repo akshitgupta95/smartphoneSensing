@@ -1,2 +1,3 @@
 rootProject.name='smartphoneSensing'
-include ':app'
+include ':app', ':dp3t-sdk'
+project(':dp3t-sdk').projectDir = new File('dp3t-sdk/sdk')
