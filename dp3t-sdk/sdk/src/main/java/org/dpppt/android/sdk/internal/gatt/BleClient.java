@@ -33,9 +33,9 @@ import org.dpppt.android.sdk.internal.database.Database;
 import org.dpppt.android.sdk.internal.database.models.Handshake;
 import org.dpppt.android.sdk.internal.logger.Logger;
 
+import static org.dpppt.android.sdk.DP3T.getLocData;
 import static org.dpppt.android.sdk.internal.gatt.BleServer.LOC_UUID;
 import static org.dpppt.android.sdk.internal.gatt.BleServer.SERVICE_UUID;
-import static org.dpppt.android.sdk.internal.gatt.BleServer.getLocData;
 
 public class BleClient {
 

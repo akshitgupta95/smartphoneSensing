@@ -56,6 +56,9 @@ public class DP3T {
 
 	private static String appId;
 
+	// DP3T location stuff
+	private static String LOC = "A";
+
 	public static void init(Context context, String appId, PublicKey signaturePublicKey) {
 		init(context, appId, false, signaturePublicKey);
 	}
@@ -250,6 +253,19 @@ public class DP3T {
 		Logger.clear();
 		Database db = new Database(context);
 		db.recreateTables(response -> onDeleteListener.run());
+	}
+
+
+	// Custom addition
+	// DP3T get location data
+	public static byte[] getLocData() {
+		byte[] locData = LOC.getBytes();
+		return locData;
+	}
+
+	// DP3T set location data
+	public static void setLocData(String locationTag) {
+		LOC = locationTag;
 	}
 
 }

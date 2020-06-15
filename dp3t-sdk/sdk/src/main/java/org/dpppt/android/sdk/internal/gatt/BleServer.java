@@ -25,6 +25,8 @@ import org.dpppt.android.sdk.internal.AppConfigManager;
 import org.dpppt.android.sdk.internal.crypto.CryptoModule;
 import org.dpppt.android.sdk.internal.logger.Logger;
 
+import static org.dpppt.android.sdk.DP3T.getLocData;
+
 public class BleServer {
 
 	private static final String TAG = "BleServer";
@@ -34,6 +36,7 @@ public class BleServer {
 	public static final UUID SERVICE_UUID = UUID.fromString("0000" + DP3T_16_BIT_UUID + "-0000-1000-8000-00805F9B34FB");
 	public static final UUID LOC_UUID = UUID.fromString("0000" + LOC_16_BIT_UUID + "-0000-1000-8000-00805F9B34FB");
 	public static final UUID TOTP_CHARACTERISTIC_UUID = UUID.fromString("8c8494e3-bab5-1848-40a0-1b06991c0001");
+	private static String LOC = "A";
 
 	private final Context context;
 	private final AdvertiseCallback advertiseCallback = new AdvertiseCallback() {
@@ -122,12 +125,6 @@ public class BleServer {
 		}
 
 		return BluetoothState.ENABLED;
-	}
-
-	// TODO: Add location data over here
-	public static byte[] getLocData() {
-		byte[] locData = loc.getBytes(); // TODO get best.macTable.location
-		return locData;
 	}
 
 	public void stopAdvertising() {

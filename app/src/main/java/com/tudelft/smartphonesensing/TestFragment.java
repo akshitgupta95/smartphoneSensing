@@ -23,6 +23,7 @@ import androidx.fragment.app.Fragment;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import org.dpppt.android.sdk.DP3T;
+import org.dpppt.android.sdk.DP3T.*;
 
 import java.util.List;
 
@@ -87,8 +88,9 @@ public class TestFragment extends Fragment implements View.OnClickListener {
             // display the location
             Toast.makeText(this.getContext(), "Probability :" + best.probability, Toast.LENGTH_SHORT).show();
             TextView locationText = (TextView) getView().findViewById(R.id.text_loc);
-            locationText.setText(best.macTable.location);
-            // TODO: we must change the location in DP3T
+            String bestLocation = best.macTable.location;
+            locationText.setText(bestLocation);
+            DP3T.setLocData(bestLocation);
 
             // bleUtil.advertise(best.macTable.location);
             String debugtext = "";
