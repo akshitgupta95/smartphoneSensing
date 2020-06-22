@@ -285,7 +285,7 @@ public class FloorplanView extends View {
                 double decay = Math.log(decayfactor) * step;
                 velx *= 1 + decay;
                 vely *= 1 + decay;
-                Log.i("acc", String.format("%.3f", norm));
+                //Log.i("acc", String.format("%.3f", norm));
                 //particleModel.move((double) event.values[0] / 2, (double) event.values[1] / 2);
                 invalidate();
             }

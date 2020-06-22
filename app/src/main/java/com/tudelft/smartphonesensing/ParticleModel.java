@@ -81,7 +81,7 @@ public class ParticleModel {
             return bestindex == -1 ? this : neighbours[bestindex];
         }
 
-        Particle randomParticle(Random rand) {
+        double[] randomPosition(Random rand) {
             //coordinate along first edge a and second edge b
             double a = rand.nextDouble();
             double b = rand.nextDouble();
@@ -93,7 +93,7 @@ public class ParticleModel {
             }
             double x = points[0].x + (points[1].x - points[0].x) * a + (points[2].x - points[0].x) * b;
             double y = points[0].y + (points[1].y - points[0].y) * a + (points[2].y - points[0].y) * b;
-            return new Particle(this, x, y);
+            return new double[]{x, y};
         }
     }
 
@@ -104,29 +104,54 @@ public class ParticleModel {
     static class Particle {
         Coordinate pos;
         ConvexBox box;
+        private double[] biasmatrix;
+        private double biasAngle;
+        private double biasScale;
 
         Particle(ConvexBox box, double x, double y) {
             this.box = box;
             this.pos = new Coordinate(x, y);
+            this.setBias(1, 0);
+        }
+
+        void setBias(double angle, double scale) {
+            biasmatrix = new double[]{
+                    scale * Math.cos(angle), scale * Math.sin(angle),
+                    -scale * Math.sin(angle), scale * Math.cos(angle)
+            };
+            biasAngle = angle;
+            biasScale = scale;
+        }
+
+        double getBiasAngle() {
+            return biasAngle;
+        }
+
+        double getBiasScale() {
+            return biasScale;
         }
 
         boolean move(double dx, double dy) {
             ConvexBox prev = box;
             ConvexBox newbox = box;
+            double mdx = dx * biasmatrix[0] + dy * biasmatrix[1];
+            double mdy = dx * biasmatrix[2] + dy * biasmatrix[3];
             do {
                 prev = newbox;
-                newbox = prev.moveInside(pos.x, pos.y, pos.x + dx, pos.y + dy);
+                newbox = prev.moveInside(pos.x, pos.y, pos.x + mdx, pos.y + mdy);
                 if (newbox == null) {
                     return false;
                 }
             } while (prev != newbox);
-            pos.x += dx;
-            pos.y += dy;
+            pos.x += mdx;
+            pos.y += mdy;
             box = newbox;
             return true;
         }
     }
 
+    private final double biasAngleRange = Math.PI / 4;
+    private final double biasScaleRange = 0.5;
     private final Random rand = new Random();
     private double totalarea;
     private List<ConvexBox> boxes;
@@ -139,6 +164,14 @@ public class ParticleModel {
         int n = particles.size();
         particles.clear();
         //spawnParticles(n);
+    }
+
+    Particle createParticle(ConvexBox box, double x, double y, double biasangle, double biasscale) {
+        Particle p = new Particle(box, x, y);
+        double angle = biasAngleRange * (0.5 - rand.nextDouble());
+        double scale = 1 + biasScaleRange * (0.5 - rand.nextDouble());
+        p.setBias(biasangle / 2 + angle / 2, biasscale / 2 + scale / 2);
+        return p;
     }
 
     public void spawnParticles(int n) {
@@ -157,16 +190,36 @@ public class ParticleModel {
                 break;
             }
         }
-        return targetbox.randomParticle(rand);
+        double[] pos = targetbox.randomPosition(rand);
+        return createParticle(targetbox, pos[0], pos[1], 0, 1);
     }
 
     public void move(double dx, double dy) {
-        //TODO implement resampling
+        double randscale = 0.5;
+        List<Integer> validindexes = new ArrayList<>(particles.size());
+        List<Integer> invalidindexes = new ArrayList<>();
+
         for (int i = 0; i < particles.size(); i++) {
-            if (!particles.get(i).move(dx, dy)) {
-                particles.set(i, randomParticle());
+            double xrand = 1 + randscale * (-0.5 + rand.nextDouble());
+            double yrand = 1 + randscale * (-0.5 + rand.nextDouble());
+
+            if (!particles.get(i).move(dx * xrand, dy * yrand)) {
+                invalidindexes.add(i);
+            } else {
+                validindexes.add(i);
             }
         }
+
+        for (int i = 0; i < invalidindexes.size(); i++) {
+            if (validindexes.size() != 0) {
+                int cloneindex = rand.nextInt(validindexes.size());
+                Particle parent = particles.get(validindexes.get(cloneindex));
+                particles.set(invalidindexes.get(i), createParticle(parent.box, parent.pos.x, parent.pos.y, parent.getBiasAngle(), parent.getBiasScale()));
+            } else {
+                particles.set(invalidindexes.get(i), randomParticle());
+            }
+        }
+
         //particles = particles.stream().filter(p -> p.move(dx, dy)).collect(Collectors.toList());
     }
 
@@ -178,6 +231,7 @@ public class ParticleModel {
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(0.02f);
         paint.setARGB(255, 255, 0, 0);
+        /*
         for (ParticleModel.ConvexBox box : boxes) {
             Path p = new Path();
             p.moveTo((float) box.points[0].x, (float) box.points[0].y);
@@ -187,6 +241,7 @@ public class ParticleModel {
             p.close();
             canvas.drawPath(p, paint);
         }
+        */
 
         //draw only a portion of the particles if there are many
         final int MAXVISIBLEPARTICLES = 30000;
