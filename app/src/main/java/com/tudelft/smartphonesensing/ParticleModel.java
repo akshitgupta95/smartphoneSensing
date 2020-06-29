@@ -156,6 +156,7 @@ public class ParticleModel {
     private double totalarea;
     private List<ConvexBox> boxes;
     private List<Particle> particles = new ArrayList<>();
+    private double northAngleOffset = 0;
 
     void setBoxes(List<ConvexBox> boxes) {
         this.boxes = boxes;
@@ -164,6 +165,10 @@ public class ParticleModel {
         int n = particles.size();
         particles.clear();
         //spawnParticles(n);
+    }
+
+    void setNorthAngleOffset(double angle) {
+        northAngleOffset = angle;
     }
 
     Particle createParticle(ConvexBox box, double x, double y, double biasangle, double biasscale) {
@@ -194,8 +199,12 @@ public class ParticleModel {
         return createParticle(targetbox, pos[0], pos[1], 0, 1);
     }
 
-    public void move(double dx, double dy) {
-        double randscale = 0.5;
+    public void move(double dxraw, double dyraw) {
+        final double randscale = 0.5;
+
+        double dx = dxraw * Math.cos(northAngleOffset) + dyraw * Math.sin(northAngleOffset);
+        double dy = -dxraw * Math.sin(northAngleOffset) + dyraw * Math.cos(northAngleOffset);
+
         List<Integer> validindexes = new ArrayList<>(particles.size());
         List<Integer> invalidindexes = new ArrayList<>();
 

@@ -12,6 +12,7 @@ import android.util.FloatMath;
 import android.util.Log;
 
 import org.jetbrains.annotations.NotNull;
+import org.locationtech.jts.math.Vector3D;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -60,14 +61,23 @@ public class MotionTracker implements SensorEventListener {
         });
 
         sensorMan = (SensorManager) ctx.getSystemService(SENSOR_SERVICE);
-        accelerometer = sensorMan.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        //accelerometer = sensorMan.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         rotationSensor = sensorMan.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         rawAccelerometer = sensorMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        stepCounter = sensorMan.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+        //stepCounter = sensorMan.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
         //sensorMan.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         sensorMan.registerListener(this, rawAccelerometer, SensorManager.SENSOR_DELAY_GAME);
         sensorMan.registerListener(this, rotationSensor, SensorManager.SENSOR_DELAY_NORMAL);
         //sensorMan.registerListener(this, stepCounter, SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    public double get2dNorthAngle() {
+        //3d vector pointing to the y axis (long side) of the phone
+        Vec3 vec = lastRotation.conjugate().permute(new Vec3(0, 1, 0));
+        //get rotation of the x-y component (parallel to earth)
+        double angle = Math.atan2(vec.y, vec.x) - Math.PI / 2;
+
+        return angle;
     }
 
     public void free() {
@@ -75,7 +85,7 @@ public class MotionTracker implements SensorEventListener {
     }
 
 
-    private Quaternion lastRotation = Quaternion.fromIncompleteUnit(0, 0, 0);
+    private Quaternion lastRotation = new Quaternion(1, 0, 0, 0);
 
     private float[] state = new float[1 + 3 + 3 + 3 + 1];
 

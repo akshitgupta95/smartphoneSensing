@@ -23,6 +23,8 @@ import android.view.View;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Vector;
+
 import static android.content.Context.SENSOR_SERVICE;
 
 public class FloorplanView extends View {
@@ -112,6 +114,12 @@ public class FloorplanView extends View {
         floorTransform.postTranslate(0.5f, 0.5f);//put origin in center of screen
         floorTransform.postScale(getWidth(), getHeight());//convert to pixel coords
         floorTransform.invert(floorTransformInverse);
+        invalidate();
+    }
+
+    void setNorth() {
+        double angle = tracker.get2dNorthAngle();
+        floorplan.setNorthAngleOffset(angle);
         invalidate();
     }
 
@@ -319,6 +327,7 @@ public class FloorplanView extends View {
             highlight.setARGB(255, 255, 255, 255);
             highlight.setStyle(Paint.Style.STROKE);
             canvas.drawPath(selectedElement.getContour(), highlight);
+            selectedElement.drawEditInfo(canvas,floorTransform);
         }
         if (selectionMode == SelectionMode.PARTICLES && particleModel != null) {
             particleModel.render(canvas);
