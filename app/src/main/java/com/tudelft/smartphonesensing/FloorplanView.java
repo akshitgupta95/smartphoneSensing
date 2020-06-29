@@ -29,6 +29,7 @@ public class FloorplanView extends View {
     enum SelectionMode {VIEWING, EDITING, PARTICLES}
 
     SelectionMode selectionMode = SelectionMode.VIEWING;
+    MotionTracker tracker;
     Floorplan floorplan;
     String floorplanName;
     ParticleModel particleModel;
@@ -118,6 +119,15 @@ public class FloorplanView extends View {
     void init() {
         FlingHandler flinger = new FlingHandler();
 
+        //TODO move this somewhere not ui related
+        //TODO actually free this when done
+        tracker = new MotionTracker(getContext(), (dx, dy) -> {
+            if (particleModel != null) {
+                particleModel.move(dx, dy);
+                invalidate();
+            }
+        });
+
         floorplan = new Floorplan();
 
         try {
@@ -199,7 +209,6 @@ public class FloorplanView extends View {
                 return true;
             }
         });
-        trackMotion(getContext());
     }
 
     void onClick(float x, float y) {
@@ -262,38 +271,6 @@ public class FloorplanView extends View {
         void stop() {
             animstart = 0;
         }
-    }
-
-    public void trackMotion(Context ctx) {
-        SensorManager sensorMan = (SensorManager) ctx.getSystemService(SENSOR_SERVICE);
-        Sensor accelerometer = sensorMan.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        sensorMan.registerListener(new SensorEventListener() {
-            double velx = 0, vely = 0;
-            long lastTick = SystemClock.elapsedRealtimeNanos();
-            final double decayat1sec = 0.8;
-            final double decayat1secstill = 0.1;
-
-            @Override
-            public void onSensorChanged(SensorEvent event) {
-                double step = (event.timestamp - lastTick) / 1e9;
-                double norm = Math.sqrt(event.values[0] * event.values[0] + event.values[1] * event.values[1] + event.values[2] * event.values[2]);
-                lastTick = event.timestamp;
-                particleModel.move(velx * step, vely * step);
-                velx += event.values[0] * step;
-                vely += event.values[1] * step;
-                double decayfactor=norm<1.0?decayat1secstill:decayat1sec;
-                double decay = Math.log(decayfactor) * step;
-                velx *= 1 + decay;
-                vely *= 1 + decay;
-                //Log.i("acc", String.format("%.3f", norm));
-                //particleModel.move((double) event.values[0] / 2, (double) event.values[1] / 2);
-                invalidate();
-            }
-
-            @Override
-            public void onAccuracyChanged(Sensor sensor, int accuracy) {
-            }
-        }, accelerometer, SensorManager.SENSOR_DELAY_GAME);
     }
 
     void dragmove(float dxpx, float dypx, boolean isfling) {
