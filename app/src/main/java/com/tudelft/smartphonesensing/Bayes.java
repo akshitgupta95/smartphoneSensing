@@ -14,6 +14,9 @@ import java.util.stream.Collectors;
 public class Bayes {
 
     Context context;
+
+
+
     List<LocationMacTable> locationMacTables = new ArrayList<>();
     List<String> usableMacs = new ArrayList<>();
 
@@ -23,6 +26,8 @@ public class Bayes {
 
     static public class LocationMacTable {
         String location;
+
+
         //mac -> sampler map
         private Map<Long, GaussianSampler> table = new HashMap<>();
 
@@ -37,6 +42,10 @@ public class Bayes {
 
         void addMacData(long mac, List<Scan> scandata) {
             table.put(mac, new GaussianSampler(scandata));
+        }
+
+        public Map<Long, GaussianSampler> getTable() {
+            return table;
         }
     }
 
@@ -152,7 +161,7 @@ public class Bayes {
         }
     }
 
-    public List<cellCandidate> predictLocation(List<ScanResult> scanResults) {
+    public List<cellCandidate> predictLocation(List<ScanResult> scanResults, float normalisationGain) {
         //TODO locationlist could be empty, show a message and quit
         //initialize set of candidates with equal probabilities
         //no need to normalize yet
@@ -174,7 +183,7 @@ public class Bayes {
         outerloop:
         for (ScanResult scan : scanResults) {
             long curMAC = Util.macStringToLong(scan.BSSID);
-            double curLevel = wifiManager.calculateSignalLevel(scan.level, 46);
+            double curLevel = wifiManager.calculateSignalLevel(scan.level, 46)+normalisationGain;
 
             for (cellCandidate cand : candidateList) {
                 double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));
@@ -203,5 +212,9 @@ public class Bayes {
         for (cellCandidate cand : candidateList) {
             cand.probability /= psum;
         }
+    }
+
+    public List<LocationMacTable> getLocationMacTables() {
+        return locationMacTables;
     }
 }
