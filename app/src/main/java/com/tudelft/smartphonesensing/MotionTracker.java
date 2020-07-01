@@ -10,8 +10,11 @@ import android.os.SystemClock;
 import android.renderscript.Matrix4f;
 import android.util.FloatMath;
 import android.util.Log;
+import android.widget.Toast;
 
 import org.jetbrains.annotations.NotNull;
+import org.jtransforms.dct.DoubleDCT_1D;
+import org.jtransforms.fft.DoubleFFT_1D;
 import org.locationtech.jts.math.Vector3D;
 
 import okhttp3.OkHttpClient;
@@ -21,6 +24,8 @@ import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -64,11 +69,11 @@ public class MotionTracker implements SensorEventListener {
         //accelerometer = sensorMan.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         rotationSensor = sensorMan.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         rawAccelerometer = sensorMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        //stepCounter = sensorMan.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+        stepCounter = sensorMan.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
         //sensorMan.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         sensorMan.registerListener(this, rawAccelerometer, SensorManager.SENSOR_DELAY_GAME);
         sensorMan.registerListener(this, rotationSensor, SensorManager.SENSOR_DELAY_NORMAL);
-        //sensorMan.registerListener(this, stepCounter, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorMan.registerListener(this, stepCounter, SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     public double get2dNorthAngle() {
@@ -87,7 +92,7 @@ public class MotionTracker implements SensorEventListener {
 
     private Quaternion lastRotation = new Quaternion(1, 0, 0, 0);
 
-    private float[] state = new float[1 + 3 + 3 + 3 + 1];
+    private double[] state = new double[1 + 3 + 3 + 3 + 1];
 
     @Override
     public void onSensorChanged(SensorEvent event) {
@@ -111,7 +116,13 @@ public class MotionTracker implements SensorEventListener {
         }
         if (event.sensor == stepCounter) {
             state[10] = (float) (event.timestamp / 1e9);
+            Vec3 dir = lastRotation.conjugate().permute(new Vec3(0, 1, 0));
+            double hormag = Math.sqrt(dir.x * dir.x + dir.y * dir.y);
+            //onmove.accept(dir.x / hormag * stepSizeMeters, dir.y / hormag * stepSizeMeters);
         }
+    }
+
+    private void sendState() {
         String str = "";
         for (int i = 0; i < state.length; i++) {
             str += (i == 0 ? "" : ",") + String.format(Locale.US, "%.6f", state[i]);
@@ -121,14 +132,53 @@ public class MotionTracker implements SensorEventListener {
 
     private double lastStepTime = 0;
     private final double stepCooldown = 0.3;
-    private final double characteristicWindowtime = 5.0;
+    private final double characteristicWindowtime = 3.0;
     private AccelMeasurement lastMeasurement = null;
+    private final int windowSize = 70;
+    private List<AccelMeasurement> history = new LinkedList<>();
     private Vec3 avgMagnitude = new Vec3(0, 0, 0);
     private double stepSizeMeters = 0.4;
+    private double walkvelocity = 4f / 3.6;//4km/hr->m/s
 
     private void newMeasurement(SensorEvent event) {
         AccelMeasurement measurement = new AccelMeasurement(event.values, event.timestamp, lastRotation);
+        history.add(measurement);
+        while (history.size() > windowSize) {
+            history.remove(0);
+        }
 
+        if (history.size() == windowSize) {
+            double[] fftdata = new double[windowSize * 2];
+            int i = 0;
+            for (AccelMeasurement mdata : history) {
+                fftdata[i * 2] = mdata.accelWorld.z;
+                fftdata[i * 2 + 1] = 0;
+                i++;
+            }
+            DoubleFFT_1D fft = new DoubleFFT_1D(windowSize);
+            fft.complexForward(fftdata);
+
+            boolean walking = false;
+            //70 samples at 50hz->1.4sec window
+            //[8-11] range=> [8-11]/1.4sec hz sec=[5.7-7.8]hz
+            //kinda looks like the natural frequency of my arm instead of the frequency of walking, but seems more reliable
+            //the value of 20 is experimental
+            double maxabs = 0;
+            for (int j = 8; j <= 11; j++) {
+                double abs = Math.sqrt(fftdata[j * 2] * fftdata[j * 2] + fftdata[j * 2 + 1] * fftdata[j * 2 + 1]);
+                maxabs = Math.max(maxabs, abs);
+            }
+            if (maxabs > 20) {
+                //the fourier introduces some lag, get the direction of the middle of the window
+                AccelMeasurement middlemeasure = history.get(history.size() - windowSize / 2);
+                Vec3 dir = middlemeasure.orientation.conjugate().permute(new Vec3(0, 1, 0));
+                double hormag = Math.sqrt(dir.x * dir.x + dir.y * dir.y);
+                double dist = walkvelocity / 50;
+                onmove.accept(dir.x / hormag * dist, dir.y / hormag * dist);
+            }
+        }
+
+        /*
         Log.v("ACC", String.format("%5.1f,%5.1f,%5.1f", measurement.accelWorld.x, measurement.accelWorld.y, measurement.accelWorld.z));
         if (lastMeasurement == null) {
             avgMagnitude = measurement.accelWorld;
@@ -138,8 +188,17 @@ public class MotionTracker implements SensorEventListener {
             double p = Math.exp(-timestep / characteristicWindowtime);
             avgMagnitude = avgMagnitude.multiply(p).add(measurement.accelWorld.multiply(1 - p));
 
+            DoubleFFT_1D fft = new DoubleFFT_1D(70);
+            fft.complexForward();
+
             Vec3 diff = measurement.accelWorld.add(avgMagnitude.multiply(-1));
-            if (diff.getMagnitude() > 5 && measurement.time > lastStepTime + stepCooldown) {
+
+            state[0] = measurement.time;
+            state[1] = diff.x;
+            state[2] = diff.y;
+            state[3] = diff.z;
+            sendState();
+            if (diff.z > 2.3 && measurement.time > lastStepTime + stepCooldown) {
                 lastStepTime = measurement.time;
                 //Vec3 dir = avgMagnitude;
                 Vec3 dir = measurement.orientation.conjugate().permute(new Vec3(0, 1, 0));
@@ -148,7 +207,7 @@ public class MotionTracker implements SensorEventListener {
             }
         }
         lastMeasurement = measurement;
-
+        */
     }
 
     static class AccelMeasurement {
