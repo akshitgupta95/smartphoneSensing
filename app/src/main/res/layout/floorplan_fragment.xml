@@ -73,8 +73,18 @@
         android:id="@+id/floorplanSimButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="8dp"
         android:text="Simulate"
+        android:visibility="invisible"
+        app:layout_constraintStart_toEndOf="@+id/floorplanNorthButton"
+        app:layout_constraintTop_toTopOf="@+id/floorplanAddRectButton" />
+
+    <Button
+        android:id="@+id/floorplanNorthButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="Set North"
         android:visibility="invisible"
         app:layout_constraintStart_toEndOf="@+id/floorplanAddRectButton"
         app:layout_constraintTop_toTopOf="@+id/floorplanAddRectButton" />

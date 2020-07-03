@@ -1,6 +1,7 @@
 package com.tudelft.smartphonesensing;
 
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
@@ -29,6 +30,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
@@ -36,12 +38,22 @@ import mxb.jts.triangulate.EarClipper;
 
 public class Floorplan {
     private List<FloorElement> elements = new ArrayList<>();
+    private double northAngleOffset = 0;
 
     static final String ELEMENT_POLYGON = "poly";
     static final String ELEMENT_RECTANGLE = "rectangle";
     static final String ELEMENT_FLOORPLAN = "floorplan";
 
+
     Floorplan() {
+    }
+
+    public double getNorthAngleOffset() {
+        return northAngleOffset;
+    }
+
+    public void setNorthAngleOffset(double angle) {
+        northAngleOffset = angle;
     }
 
     public List<ParticleModel.ConvexBox> getWalkable() {
@@ -202,6 +214,7 @@ public class Floorplan {
         for (FloorElement el : elements) {
             els.put(el.serialize());
         }
+        obj.put("northangle", northAngleOffset);
         obj.put("children", els);
         obj.put("type", ELEMENT_FLOORPLAN);
         return obj;
@@ -228,6 +241,11 @@ public class Floorplan {
             }
             newel.deserialize(child);
             els.add(newel);
+        }
+        try {
+            northAngleOffset = obj.getDouble("northangle");
+        } catch (JSONException e) {
+            northAngleOffset = 0;
         }
         setElements(els);
     }
@@ -262,6 +280,8 @@ public class Floorplan {
          * @return a path that defines a highlight contour around the element
          */
         Path getContour();
+
+        void drawEditInfo(Canvas cnv, Matrix transform);
     }
 
     public interface FloorObstacle {
@@ -434,6 +454,24 @@ public class Floorplan {
             p.close();
             //p.addRect(area, Path.Direction.CW);
             return p;
+        }
+
+        @Override
+        public void drawEditInfo(Canvas cnv, Matrix transform) {
+            Paint paint = new Paint();
+            paint.setTextSize(60f);
+            paint.setARGB(255, 255, 255, 255);
+            paint.setLinearText(true);
+            paint.setSubpixelText(true);
+            paint.setTextAlign(Paint.Align.CENTER);
+            paint.setStyle(Paint.Style.FILL);
+
+            float[] center = new float[]{area.centerX(), area.centerY()};
+            transform.mapPoints(center);
+            cnv.save();
+            cnv.setMatrix(new Matrix());
+            cnv.drawText(String.format(Locale.US,"%.1fx%.1f m", area.width(), area.height()), center[0], center[1], paint);
+            cnv.restore();
         }
     }
 

@@ -7,8 +7,14 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PointF;
 import android.graphics.RectF;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -17,10 +23,15 @@ import android.view.View;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Vector;
+
+import static android.content.Context.SENSOR_SERVICE;
+
 public class FloorplanView extends View {
     enum SelectionMode {VIEWING, EDITING, PARTICLES}
 
     SelectionMode selectionMode = SelectionMode.VIEWING;
+    MotionTracker tracker;
     Floorplan floorplan;
     String floorplanName;
     ParticleModel particleModel;
@@ -106,9 +117,24 @@ public class FloorplanView extends View {
         invalidate();
     }
 
+    void setNorth() {
+        double angle = tracker.get2dNorthAngle();
+        floorplan.setNorthAngleOffset(angle);
+        invalidate();
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     void init() {
         FlingHandler flinger = new FlingHandler();
+
+        //TODO move this somewhere not ui related
+        //TODO actually free this when done
+        tracker = new MotionTracker(getContext(), (dx, dy) -> {
+            if (particleModel != null) {
+                particleModel.move(dx, dy);
+                invalidate();
+            }
+        });
 
         floorplan = new Floorplan();
 
@@ -191,7 +217,6 @@ public class FloorplanView extends View {
                 return true;
             }
         });
-
     }
 
     void onClick(float x, float y) {
@@ -302,6 +327,7 @@ public class FloorplanView extends View {
             highlight.setARGB(255, 255, 255, 255);
             highlight.setStyle(Paint.Style.STROKE);
             canvas.drawPath(selectedElement.getContour(), highlight);
+            selectedElement.drawEditInfo(canvas,floorTransform);
         }
         if (selectionMode == SelectionMode.PARTICLES && particleModel != null) {
             particleModel.render(canvas);

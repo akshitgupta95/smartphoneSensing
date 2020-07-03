@@ -29,6 +29,9 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation 'com.github.wendykierp:JTransforms:3.1'
+    implementation "com.squareup.okhttp3:okhttp:4.7.2"
     implementation 'org.locationtech.jts:jts-core:1.16.1'
     implementation 'org.locationtech.jts:jts:1.16.1'
     implementation 'com.jjoe64:graphview:4.2.2'

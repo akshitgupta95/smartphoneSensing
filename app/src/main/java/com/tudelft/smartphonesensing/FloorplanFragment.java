@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -21,13 +22,13 @@ public class FloorplanFragment extends Fragment {
         return inflater.inflate(R.layout.floorplan_fragment, container, false);
     }
 
-
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         Button editButton = this.getView().findViewById(R.id.floorplanEditButton);
         Button saveButton = this.getView().findViewById(R.id.floorplanSaveButton);
         Button loadButton = this.getView().findViewById(R.id.floorplanLoadButton);
         Button addRectButton = this.getView().findViewById(R.id.floorplanAddRectButton);
+        Button setNorthButton = this.getView().findViewById(R.id.floorplanNorthButton);
         Button particlesButton = this.getView().findViewById(R.id.floorplanParticlesButton);
         Button simButton = this.getView().findViewById(R.id.floorplanSimButton);
         FloorplanView floorview = this.getView().findViewById(R.id.floorplanView);
@@ -44,14 +45,20 @@ public class FloorplanFragment extends Fragment {
             if (mode == FloorplanView.SelectionMode.PARTICLES) {
                 Floorplan map = floorview.getFloorplan();
                 model.setBoxes(map.getWalkable());
+                model.setNorthAngleOffset(map.getNorthAngleOffset());
                 model.spawnParticles(10000);
                 floorview.invalidate();
             }
             floorview.setSelectionMode(mode);
             addRectButton.setVisibility(mode == FloorplanView.SelectionMode.EDITING ? View.VISIBLE : View.INVISIBLE);
+            setNorthButton.setVisibility(mode == FloorplanView.SelectionMode.EDITING ? View.VISIBLE : View.INVISIBLE);
             simButton.setVisibility(mode == FloorplanView.SelectionMode.PARTICLES ? View.VISIBLE : View.INVISIBLE);
         };
 
+        setNorthButton.setOnClickListener(btn -> {
+            floorview.setNorth();
+            Toast.makeText(getContext(), "Alligned map to phone axis", Toast.LENGTH_LONG).show();
+        });
         addRectButton.setOnClickListener(btn -> floorview.addRectangleObstacle());
         editButton.setOnClickListener(btn -> clickMode.accept(FloorplanView.SelectionMode.EDITING));
         particlesButton.setOnClickListener(btn -> clickMode.accept(FloorplanView.SelectionMode.PARTICLES));
