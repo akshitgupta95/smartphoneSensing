@@ -165,7 +165,7 @@ public class Bayes {
         //TODO locationlist could be empty, show a message and quit
         //initialize set of candidates with equal probabilities
         //no need to normalize yet
-        double baseprob = 1.0;
+        double baseprob = 1.0/8;
         List<cellCandidate> candidateList = locationMacTables.stream()
                 .map(l -> new cellCandidate(baseprob, l))
                 .collect(Collectors.toList());
@@ -185,12 +185,18 @@ public class Bayes {
             long curMAC = Util.macStringToLong(scan.BSSID);
             double curLevel = wifiManager.calculateSignalLevel(scan.level, 46)+normalisationGain;
 
+            double rssj=0;
+            for(cellCandidate cand:candidateList){
+                rssj+= cand.macTable.sampleProb(curMAC, curLevel);
+            }
+
             for (cellCandidate cand : candidateList) {
                 double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));
                 cand.probability *= sampledP;
+                cand.probability/=rssj;
 
             }
-            makeSumOfProbabilitiesEqualOne(candidateList);
+//            makeSumOfProbabilitiesEqualOne(candidateList);
             for (cellCandidate cand : candidateList) {
                 if (cand.probability > threshold)
                     break outerloop;
