@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Stack;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import mxb.jts.triangulate.EarClipper;
@@ -261,6 +262,12 @@ public class Floorplan {
         }
     }
 
+    public interface FloorplanBayesCell {
+        int getCellLocation();
+
+        void setCellLocation(int loc);
+    }
+
     public interface FloorEditable extends FloorElement {
         /**
          * @return true if the element occupies floor space at x,y
@@ -295,9 +302,30 @@ public class Floorplan {
     }
 
     public interface ElementAction {
-        public String getName();
+        String getName();
 
-        public void click();
+        void click();
+
+        /**
+         * Sorry Lord for i have sinned, i can no longer handle java being java
+         *
+         * @param getName
+         * @param onClick
+         * @return
+         */
+        static ElementAction shortHand(Supplier<String> getName, Runnable onClick) {
+            return new ElementAction() {
+                @Override
+                public String getName() {
+                    return getName.get();
+                }
+
+                @Override
+                public void click() {
+                    onClick.run();
+                }
+            };
+        }
     }
 
     public interface FloorObstacle {
@@ -387,8 +415,9 @@ public class Floorplan {
         }
     }
 
-    public static class RectangleObstacle implements FloorElement, FloorObstacle, FloorEditable {
+    public static class RectangleObstacle implements FloorElement, FloorObstacle, FloorEditable, FloorplanBayesCell {
         RectF area = new RectF();
+        int cellLocation = -1;
 
         public RectF getArea() {
             return area;
@@ -481,6 +510,16 @@ public class Floorplan {
             cnv.setMatrix(new Matrix());
             cnv.drawText(String.format(Locale.US, "%.1fx%.1f m", area.width(), area.height()), center[0], center[1], palette.text);
             cnv.restore();
+        }
+
+        @Override
+        public int getCellLocation() {
+            return cellLocation;
+        }
+
+        @Override
+        public void setCellLocation(int loc) {
+            cellLocation = loc;
         }
     }
 

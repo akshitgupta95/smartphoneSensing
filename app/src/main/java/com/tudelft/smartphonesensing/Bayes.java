@@ -14,24 +14,23 @@ import java.util.stream.Collectors;
 public class Bayes {
 
     Context context;
-
-
+    int floorplanid;
 
     List<LocationMacTable> locationMacTables = new ArrayList<>();
     List<String> usableMacs = new ArrayList<>();
 
-    public Bayes(Context context) {
+    public Bayes(Context context, int floorplanid) {
         this.context = context;
+        this.floorplanid = floorplanid;
     }
 
     static public class LocationMacTable {
-        String location;
-
+        int location;
 
         //mac -> sampler map
         private Map<Long, GaussianSampler> table = new HashMap<>();
 
-        LocationMacTable(String location) {
+        LocationMacTable(int location) {
             this.location = location;
         }
 
@@ -108,12 +107,12 @@ public class Bayes {
         final AppDatabase db = AppDatabase.getInstance(context);
 
         locationMacTables.clear();
-        List<String> locations = db.scanDAO().getAllLocations();
-        for (String location : locations) {
-            List<Long> locMacs = db.scanDAO().getAllMacsAtLocation(location);
-            LocationMacTable subtable = new LocationMacTable(location);
+        List<LocationCell> locations = db.locationCellDAO().getAllInFloorplan(floorplanid);
+        for (LocationCell location : locations) {
+            List<Long> locMacs = db.scanDAO().getAllMacsAtLocation(location.getId());
+            LocationMacTable subtable = new LocationMacTable(location.getId());
             for (Long mac : locMacs) {
-                List<Scan> macAppearences = db.scanDAO().getAllScansWithMacAndLocation(location, mac);
+                List<Scan> macAppearences = db.scanDAO().getAllScansWithMacAndLocation(location.getId(), mac);
                 //alphatrim here
                 macAppearences = alphatrim(macAppearences);
                 subtable.addMacData(mac, macAppearences);
@@ -183,7 +182,7 @@ public class Bayes {
         outerloop:
         for (ScanResult scan : scanResults) {
             long curMAC = Util.macStringToLong(scan.BSSID);
-            double curLevel = wifiManager.calculateSignalLevel(scan.level, 46)+normalisationGain;
+            double curLevel = wifiManager.calculateSignalLevel(scan.level, 46) + normalisationGain;
 
             for (cellCandidate cand : candidateList) {
                 double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));

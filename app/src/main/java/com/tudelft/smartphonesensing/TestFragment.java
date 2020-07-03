@@ -21,15 +21,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class TestFragment extends Fragment implements View.OnClickListener {
 
     private WifiManager wifiManager;
     private List<ScanResult> results;
-    private Bayes bayes;
+    private Bayes bayes = null;
     private TextView normaliseTV;
     private ProgressBar progressBar;
-    private float normalisationGain=0;
+    private float normalisationGain = 0;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -42,9 +43,21 @@ public class TestFragment extends Fragment implements View.OnClickListener {
         pred.setOnClickListener(this);
         FloatingActionButton normalise = (FloatingActionButton) getView().findViewById(R.id.normalise);
         normalise.setOnClickListener(this);
-        normaliseTV=(TextView) getView().findViewById(R.id.normaliseStatus);
-        progressBar=getView().findViewById(R.id.progress_loader);
-        bayes = new Bayes(getActivity());
+        normaliseTV = (TextView) getView().findViewById(R.id.normaliseStatus);
+        progressBar = getView().findViewById(R.id.progress_loader);
+
+        AppDatabase db = AppDatabase.getInstance(getContext());
+        List<FloorplanDataDAO.FloorplanMeta> floors = db.floorplanDataDAO().getAllNames();
+
+        if (floors.size() == 0) {
+            Toast.makeText(getContext(), "No locations yet", Toast.LENGTH_SHORT).show();
+        } else {
+            //TODO temp code, should no longer be needed
+            String[] names = floors.stream().map(f -> f.name).toArray(String[]::new);
+            Util.showDropdownSpinner(getContext(), "Select floor plan", names, index -> {
+                bayes = new Bayes(getActivity(), floors.get(index).id);
+            });
+        }
     }
 
     public void onClick(View v) {
@@ -80,98 +93,97 @@ public class TestFragment extends Fragment implements View.OnClickListener {
 
     private void parseUniqueResultsAndFindProximateLocations(List<List<ScanResult>> lists) {
         progressBar.setVisibility(View.GONE);
-        String text="numOfScans(m): "+lists.size()+"\n"; //should be 3
-        List<ScanResult> uniqueResults=lists.get(0);
-        for(ScanResult scan: uniqueResults)
-            scan.frequency=1;
-        for(int j=1;j<lists.size();j++){
-            List<ScanResult> list=lists.get(j);
-            for (int k=0;k<list.size();k++){
-                ScanResult result=list.get(k);
-                Boolean flag=false;
-                for(int m=0;m<uniqueResults.size();m++){
-                    if(uniqueResults.get(m).BSSID.equals(result.BSSID)){
-                        flag=true;
-                        int levelSum=(uniqueResults.get(m).level+result.level);
-                        uniqueResults.get(m).level=levelSum;
+        String text = "numOfScans(m): " + lists.size() + "\n"; //should be 3
+        List<ScanResult> uniqueResults = lists.get(0);
+        for (ScanResult scan : uniqueResults)
+            scan.frequency = 1;
+        for (int j = 1; j < lists.size(); j++) {
+            List<ScanResult> list = lists.get(j);
+            for (int k = 0; k < list.size(); k++) {
+                ScanResult result = list.get(k);
+                Boolean flag = false;
+                for (int m = 0; m < uniqueResults.size(); m++) {
+                    if (uniqueResults.get(m).BSSID.equals(result.BSSID)) {
+                        flag = true;
+                        int levelSum = (uniqueResults.get(m).level + result.level);
+                        uniqueResults.get(m).level = levelSum;
                         uniqueResults.get(m).frequency++;
                     }
                 }
-                if(!flag) {
+                if (!flag) {
                     result.frequency = 1;
                     uniqueResults.add(result);
                 }
-                }
-
             }
-        for(ScanResult scan: uniqueResults)
-        {
-            scan.level=scan.level/scan.frequency;
+
         }
-        uniqueResults.sort((a, b) -> Integer.compare(b.level,a.level));
+        for (ScanResult scan : uniqueResults) {
+            scan.level = scan.level / scan.frequency;
+        }
+        uniqueResults.sort((a, b) -> Integer.compare(b.level, a.level));
         //TODO: If needed, we can remove low RSSi values from unique results to always have convergence
-        List<Integer> G=new ArrayList<>();
-        boolean normalised=false;
+        List<Integer> G = new ArrayList<>();
+        boolean normalised = false;
         //find same macs in training data
-        List<Bayes.LocationMacTable> locationMacTables=bayes.getLocationMacTables();
-        for(Bayes.LocationMacTable locationMacTable: locationMacTables){
-            Map<Long, Bayes.GaussianSampler> macsInLocation=locationMacTable.getTable();
-            boolean found=true;
+        List<Bayes.LocationMacTable> locationMacTables = bayes.getLocationMacTables();
+        for (Bayes.LocationMacTable locationMacTable : locationMacTables) {
+            Map<Long, Bayes.GaussianSampler> macsInLocation = locationMacTable.getTable();
+            boolean found = true;
             //try to normalise only if this location contains all unique results
-            for(int i=0;i<uniqueResults.size();i++){
-                if(!macsInLocation.containsKey(Util.macStringToLong(uniqueResults.get(i).BSSID)))
-                    found= false;
+            for (int i = 0; i < uniqueResults.size(); i++) {
+                if (!macsInLocation.containsKey(Util.macStringToLong(uniqueResults.get(i).BSSID)))
+                    found = false;
             }
             //this location contains all SSIDs, so a candidate for normalisation
-            if(found) {
-                boolean checkNormalise=checkForNormalisationAndNormalise(macsInLocation, uniqueResults,G);
-                if(!normalised)
-                normalised=checkNormalise;
+            if (found) {
+                boolean checkNormalise = checkForNormalisationAndNormalise(macsInLocation, uniqueResults, G);
+                if (!normalised)
+                    normalised = checkNormalise;
                 if (checkNormalise) {
-                   Toast.makeText(getContext(), "Normalisation was done using location: "+locationMacTable.location, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "Normalisation was done using location: " + locationMacTable.location, Toast.LENGTH_SHORT).show();
 
                 }
             }
 
         }
-        if(normalised) {
+        if (normalised) {
             float Gsum = 0;
             for (int g : G) {
                 Gsum += g;
             }
             float Gmean = Gsum / G.size();
-            normalisationGain=Gmean;
-            Toast.makeText(getContext(), "Normalisation Gain: "+Gmean, Toast.LENGTH_SHORT).show();
+            normalisationGain = Gmean;
+            Toast.makeText(getContext(), "Normalisation Gain: " + Gmean, Toast.LENGTH_SHORT).show();
 
         }
 //        normaliseStep2(uniqueResults);
 
-        }
+    }
 
     private Boolean checkForNormalisationAndNormalise(Map<Long, Bayes.GaussianSampler> macsInLocation, List<ScanResult> uniqueResults, List<Integer> G) {
-        int threshold=3;
-        List<Integer> V1=new ArrayList<>();
-        for(int i=0;i<uniqueResults.size();i++){
-            int norm1=WifiManager.calculateSignalLevel(uniqueResults.get(i).level, 46);
-            int norm2=WifiManager.calculateSignalLevel(uniqueResults.get(0).level, 46);
-            V1.add(norm1-norm2);
+        int threshold = 3;
+        List<Integer> V1 = new ArrayList<>();
+        for (int i = 0; i < uniqueResults.size(); i++) {
+            int norm1 = WifiManager.calculateSignalLevel(uniqueResults.get(i).level, 46);
+            int norm2 = WifiManager.calculateSignalLevel(uniqueResults.get(0).level, 46);
+            V1.add(norm1 - norm2);
         }
-        List<Integer> V2=new ArrayList<>();
-        for(int i=0;i<uniqueResults.size();i++){
-            long mac0=Util.macStringToLong(uniqueResults.get(0).BSSID);
-            long mac=Util.macStringToLong(uniqueResults.get(i).BSSID);
-            V2.add((int)(macsInLocation.get(mac).mean-macsInLocation.get(mac0).mean));
+        List<Integer> V2 = new ArrayList<>();
+        for (int i = 0; i < uniqueResults.size(); i++) {
+            long mac0 = Util.macStringToLong(uniqueResults.get(0).BSSID);
+            long mac = Util.macStringToLong(uniqueResults.get(i).BSSID);
+            V2.add((int) (macsInLocation.get(mac).mean - macsInLocation.get(mac0).mean));
         }
-        int normaliseSum=0;
-        for(int i=0;i<V1.size();i++){
-            normaliseSum+= Math.abs(V1.get(i)-V2.get(i));
+        int normaliseSum = 0;
+        for (int i = 0; i < V1.size(); i++) {
+            normaliseSum += Math.abs(V1.get(i) - V2.get(i));
         }
-        normaliseSum=normaliseSum/V1.size();
-        if(normaliseSum<=threshold){
-            for(int i=0;i<uniqueResults.size();i++){
-                int p1=WifiManager.calculateSignalLevel(uniqueResults.get(i).level, 46);
-                int p2=(int)macsInLocation.get(Util.macStringToLong(uniqueResults.get(i).BSSID)).mean;
-                G.add(p1-p2);
+        normaliseSum = normaliseSum / V1.size();
+        if (normaliseSum <= threshold) {
+            for (int i = 0; i < uniqueResults.size(); i++) {
+                int p1 = WifiManager.calculateSignalLevel(uniqueResults.get(i).level, 46);
+                int p2 = (int) macsInLocation.get(Util.macStringToLong(uniqueResults.get(i).BSSID)).mean;
+                G.add(p1 - p2);
             }
 
             return true;
@@ -183,22 +195,22 @@ public class TestFragment extends Fragment implements View.OnClickListener {
     private void normaliseStep2(List<ScanResult> results) {
 //        TODO: add 0 check on results
         //
-        String text="SIZE(m): "+results.size()+"\n";
+        String text = "SIZE(m): " + results.size() + "\n";
         //the results list is sorted in decreasing order of signal values
 //        results.sort((a, b) -> a.SSID.compareTo(b.SSID));
 //      Map:(BSSIDx-BSSID1,RSSI Diff)
 //        V =<0,p2 −p2 ,···,p2 −p2 > from paper
-        HashMap<String,Integer> VectorV= new HashMap<>();
-        String BSSID1=String.valueOf(Util.macStringToLong(results.get(0).BSSID));
-        int rssiatOne=results.get(0).level;
-        for(int i=0;i<results.size();i++) {
-            String bssid=String.valueOf(Util.macStringToLong(results.get(i).BSSID));
-            bssid=bssid+"-"+BSSID1;
-            int deltaRssi=results.get(i).level-rssiatOne;
-            VectorV.put(bssid,deltaRssi);
+        HashMap<String, Integer> VectorV = new HashMap<>();
+        String BSSID1 = String.valueOf(Util.macStringToLong(results.get(0).BSSID));
+        int rssiatOne = results.get(0).level;
+        for (int i = 0; i < results.size(); i++) {
+            String bssid = String.valueOf(Util.macStringToLong(results.get(i).BSSID));
+            bssid = bssid + "-" + BSSID1;
+            int deltaRssi = results.get(i).level - rssiatOne;
+            VectorV.put(bssid, deltaRssi);
         }
-        for(Map.Entry<String, Integer> entry:VectorV.entrySet() ){
-            text+=entry.getKey()+": "+entry.getValue()+"\n";
+        for (Map.Entry<String, Integer> entry : VectorV.entrySet()) {
+            text += entry.getKey() + ": " + entry.getValue() + "\n";
         }
 
         normaliseTV.setText(text);
@@ -223,7 +235,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
 
     private void scanSuccess(List<ScanResult> results) {
         if (results.size() != 0) {
-            List<Bayes.cellCandidate> candidates = bayes.predictLocation(results,normalisationGain);
+            List<Bayes.cellCandidate> candidates = bayes.predictLocation(results, normalisationGain);
             Bayes.cellCandidate best = candidates.get(0);
 
             // display the location

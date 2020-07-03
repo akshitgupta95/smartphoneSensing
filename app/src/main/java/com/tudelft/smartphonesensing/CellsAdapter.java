@@ -16,7 +16,7 @@ import java.util.ArrayList;
 
 public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHolder> {
 
-    private ArrayList<String> data;
+    private ArrayList<LocationCell> data;
     private AdapterView.OnItemClickListener onItemClickListener;
 
 
@@ -35,7 +35,7 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
         @Override
         public void onClick(View view) {
             Bundle bundle = new Bundle();
-            bundle.putString("cellName", textView.getText().toString());
+            bundle.putInt("cellName",(int) textView.getTag());
             Fragment fragment = new CellFragment();
             fragment.setArguments(bundle);
             //TODO: Bad practice, decouple fragment and activity using some other method, use viewPager
@@ -49,7 +49,7 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
     }
 
     // Provide a suitable constructor (depends on the kind of dataset)
-    public CellsAdapter(ArrayList<String> data, AdapterView.OnItemClickListener onItemClickListener) {
+    public CellsAdapter(ArrayList<LocationCell> data, AdapterView.OnItemClickListener onItemClickListener) {
         this.data = data;
         this.onItemClickListener = onItemClickListener;
     }
@@ -71,8 +71,10 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
     public void onBindViewHolder(CellsViewHolder holder, int position) {
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
-        final String cellName = data.get(position);
+        LocationCell cell = data.get(position);
+        final String cellName = String.format("%s: %s", cell.getFloorplanId(), cell.getName());
         holder.textView.setText(cellName);
+        holder.textView.setTag(cell.getId());
     }
 
 

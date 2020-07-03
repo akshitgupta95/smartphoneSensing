@@ -7,13 +7,17 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PointF;
 import android.graphics.RectF;
+import android.os.Bundle;
 import android.os.Handler;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.Toast;
+
+import androidx.fragment.app.Fragment;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -106,76 +110,54 @@ public class FloorplanView extends View {
     public List<Floorplan.ElementAction> getActions() {
         List<Floorplan.ElementAction> actions = new ArrayList<>();
         if (this.selectionMode == SelectionMode.PARTICLES) {
-            actions.add(new Floorplan.ElementAction() {
-                @Override
-                public String getName() {
-                    return simulating ? "Stop" : "Simulate";
-                }
-
-                @Override
-                public void click() {
-                    simulating = !simulating;
-                    buttonsChanged();
-                }
-            });
+            actions.add(Floorplan.ElementAction.shortHand(() -> simulating ? "Stop" : "Simulate", () -> {
+                simulating = !simulating;
+                buttonsChanged();
+            }));
         }
         if (this.selectionMode == SelectionMode.EDITING) {
-            actions.add(new Floorplan.ElementAction() {
-                @Override
-                public String getName() {
-                    return "Save";
-                }
-
-                @Override
-                public void click() {
-                    Util.showTextDialog(getContext(), "Save floorplan as", floorplanName, (name) -> {
-                        if (name != null) {
-                            saveAs(name);
-                        }
-                    });
-                }
-            });
-
-            actions.add(new Floorplan.ElementAction() {
-                @Override
-                public String getName() {
-                    return "Add rect";
-                }
-
-                @Override
-                public void click() {
-                    addRectangleObstacle();
-                }
-            });
-
-            actions.add(new Floorplan.ElementAction() {
-                @Override
-                public String getName() {
-                    return "Align phone axis";
-                }
-
-                @Override
-                public void click() {
-                    setNorth();
-                }
-            });
-
-            if (selectedElement != null) {
-                actions.add(new Floorplan.ElementAction() {
-                    @Override
-                    public String getName() {
-                        return "Remove";
-                    }
-
-                    @Override
-                    public void click() {
-                        floorplan.removeElement(selectedElement);
-                        selectedElement = null;
-                        buttonsChanged();
+            actions.add(Floorplan.ElementAction.shortHand(() -> "Save", () -> {
+                Util.showTextDialog(getContext(), "Save floorplan as", floorplanName, (name) -> {
+                    if (name != null) {
+                        saveAs(name);
                     }
                 });
+            }));
+            actions.add(Floorplan.ElementAction.shortHand(() -> "Add rect", this::addRectangleObstacle));
+            actions.add(Floorplan.ElementAction.shortHand(() -> "Align", this::setNorth));
+
+
+            if (selectedElement != null) {
+                actions.add(Floorplan.ElementAction.shortHand(() -> "Remove", () -> {
+                    floorplan.removeElement(selectedElement);
+                    selectedElement = null;
+                    buttonsChanged();
+                }));
 
                 actions.addAll(selectedElement.getActions());
+
+                if (selectedElement instanceof Floorplan.FloorplanBayesCell) {
+                    Floorplan.FloorplanBayesCell cellelement = (Floorplan.FloorplanBayesCell) selectedElement;
+                    actions.add(Floorplan.ElementAction.shortHand(() -> "Cell Settings", () -> {
+                        //TODO copied from CellsAdapter.java, is this correct, can we combine there calls?
+                        Bundle bundle = new Bundle();
+                        int cellid = cellelement.getCellLocation();
+                        if (cellid == -1) {
+                            LocationCell cell = new LocationCell();
+                            cell.setName("New cell");
+                            //TODO shit, the room lib uses longs for id's, change this to long everywhere?
+                            cellid = (int)AppDatabase.getInstance(getContext()).locationCellDAO().insert(cell);
+                        }
+                        bundle.putInt("cellName", cellid);
+                        Fragment fragment = new CellFragment();
+                        fragment.setArguments(bundle);
+                        //TODO: Bad practice, decouple fragment and activity using some other method, use viewPager
+                        MainActivity activity = (MainActivity) getContext();
+                        activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).addToBackStack(null).commit();
+                        activity.setActiveFragment(fragment);
+                        Log.i("CLICK", "RecyclerView Item Click Position");
+                    }));
+                }
             }
         }
 
