@@ -99,7 +99,7 @@ public class Bayes {
                     double diff = scan.getLevel() - mean;
                     leveldiffsum += diff * diff;
                 }
-                stddev = Math.sqrt(leveldiffsum / (nsamples - 1));
+                stddev = Math.sqrt(leveldiffsum / (nsamples));
             }
         }
     }
@@ -165,7 +165,7 @@ public class Bayes {
         //TODO locationlist could be empty, show a message and quit
         //initialize set of candidates with equal probabilities
         //no need to normalize yet
-        double baseprob = 1.0/8;
+        double baseprob = 1.0;
         List<cellCandidate> candidateList = locationMacTables.stream()
                 .map(l -> new cellCandidate(baseprob, l))
                 .collect(Collectors.toList());
@@ -174,10 +174,11 @@ public class Bayes {
 
         //TODO the value of this depends on the width of the expected RSSi range!!
         //it will break when a different normalisation is used than 0-10
-        final double minimalP = 1.0 / 46;
+
 
         //TODO: Find good threshold value to use
         final double threshold = 0.7;
+
         //sort here and do iterations
         Collections.sort(scanResults, (o1, o2) -> o1.level - o2.level);
         outerloop:
@@ -189,16 +190,17 @@ public class Bayes {
             for(cellCandidate cand:candidateList){
                 rssj+= cand.macTable.sampleProb(curMAC, curLevel);
             }
+            if(rssj!=0) {
+                for (cellCandidate cand : candidateList) {
+                    double sampledP = cand.macTable.sampleProb(curMAC, curLevel);
+                    cand.probability *= sampledP;
+                    cand.probability /= rssj;
 
-            for (cellCandidate cand : candidateList) {
-                double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));
-                cand.probability *= sampledP;
-                cand.probability/=rssj;
-
+                }
             }
-//            makeSumOfProbabilitiesEqualOne(candidateList);
+            makeSumOfProbabilitiesEqualOne(candidateList);
             for (cellCandidate cand : candidateList) {
-                if (cand.probability > threshold)
+                if (cand.probability > threshold
                     break outerloop;
             }
         }
