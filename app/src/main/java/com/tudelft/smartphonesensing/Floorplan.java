@@ -451,6 +451,7 @@ public class Floorplan {
             props.put("right", area.right);
             props.put("bottom", area.bottom);
             props.put("type", ELEMENT_RECTANGLE);
+            props.put("cellid", cellLocation);
             return props;
         }
 
@@ -460,6 +461,7 @@ public class Floorplan {
             area.top = (float) props.getDouble("top");
             area.right = (float) props.getDouble("right");
             area.bottom = (float) props.getDouble("bottom");
+            cellLocation = props.getInt("cellid");
         }
 
         @Override
