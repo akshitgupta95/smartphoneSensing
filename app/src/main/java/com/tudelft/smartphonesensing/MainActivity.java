@@ -1,9 +1,9 @@
 package com.tudelft.smartphonesensing;
 
 import android.os.Bundle;
-import android.util.Log;
 import android.view.MenuItem;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
@@ -12,70 +12,79 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.Stack;
 
 public class MainActivity extends AppCompatActivity {
 
-    final Fragment manageFragment = new ManageFragment();
-    final Fragment testFragment = new TestFragment();
-    final Fragment floorplanFragment = new FloorplanFragment();
-    final Fragment cellFragment = new CellFragment();
+    final ManageFragment manageFragment = new ManageFragment();
+    final TestFragment predictFragment = new TestFragment();
+    final FloorplanFragment floorplanFragment = new FloorplanFragment();
+    final CellFragment cellFragment = new CellFragment();
     final FragmentManager fm = getSupportFragmentManager();
-    final Fragment[] tabbedFragments = new Fragment[]{manageFragment, testFragment, floorplanFragment};
+    final List<Fragment> tabbedFragments = Arrays.asList(manageFragment, predictFragment, floorplanFragment);
+    final List<Fragment> allFragments = Arrays.asList(manageFragment, predictFragment, floorplanFragment, cellFragment);
 
-    public Fragment getActiveFragment() {
-        return getSupportFragmentManager()
-                .findFragmentById(R.id.main_container);
-//        return active;
-    }
+    Stack<Fragment> fragmentStack = new Stack<>();
+    Fragment activeFragment = null;
 
-    public void setActiveFragment(Fragment active) {
+    public void setActiveFragment(Fragment active, boolean editStack) {
+        if (editStack) {
+            if (tabbedFragments.indexOf(active) != -1) {
+                fragmentStack.clear();
+            } else {
+                fragmentStack.push(activeFragment);
+            }
+        }
+
         FragmentTransaction trans = fm.beginTransaction();
-        Arrays.stream(tabbedFragments).forEach(trans::hide);
+        allFragments.forEach(trans::hide);
         trans.show(active);
+        trans.commit();
+        activeFragment = active;
+        backcallback.setEnabled(fragmentStack.size() > 0);
     }
+
+    OnBackPressedCallback backcallback = new OnBackPressedCallback(false) {
+        @Override
+        public void handleOnBackPressed() {
+            if (fragmentStack.size() > 0) {
+                setActiveFragment(fragmentStack.pop(), false);
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         BottomNavigationView navView = findViewById(R.id.bottomNavigationView);
-        FragmentTransaction trans=fm.beginTransaction();
-        Arrays.stream(tabbedFragments).forEach(f->trans.add(R.id.main_container,f));
+        FragmentTransaction trans = fm.beginTransaction();
+        allFragments.forEach(f -> trans.add(R.id.main_container, f));
         trans.commit();
-        navView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
-        setActiveFragment(floorplanFragment);
-    }
+        setActiveFragment(floorplanFragment, true);
 
-    private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
-            = new BottomNavigationView.OnNavigationItemSelectedListener() {
-
-        @Override
-        public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        navView.setOnNavigationItemSelectedListener(item -> {
             switch (item.getItemId()) {
-                case R.id.navigation_train:
-                    setActiveFragment();
+                case R.id.navigation_manage:
+                    setActiveFragment(manageFragment, true);
                     return true;
-
                 case R.id.navigation_floorplan:
-                    Log.v("Fragment", getActiveFragment().toString());
-                    fm.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
-                    fm.beginTransaction().hide(testFragment).commit();
-                    fm.beginTransaction().hide(manageFragment).commit();
-                    fm.beginTransaction().hide(getActiveFragment()).show(floorplanFragment).commit();
-                    active = floorplanFragment;
+                    setActiveFragment(floorplanFragment, true);
                     return true;
-
-                case R.id.navigation_test:
-                    Log.v("Fragment", getActiveFragment().toString());
-                    fm.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
-                    fm.beginTransaction().hide(floorplanFragment).commit();
-                    fm.beginTransaction().hide(manageFragment).commit();
-                    fm.beginTransaction().hide(getActiveFragment()).show(testFragment).commit();
-                    active = testFragment;
+                case R.id.navigation_predict:
+                    setActiveFragment(predictFragment, true);
                     return true;
             }
             return false;
-        }
-    };
+        });
+
+        // This callback will only be called when MyFragment is at least Started.
+        getOnBackPressedDispatcher().addCallback(this, backcallback);
+    }
 }

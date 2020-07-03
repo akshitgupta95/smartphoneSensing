@@ -148,14 +148,10 @@ public class FloorplanView extends View {
                             //TODO shit, the room lib uses longs for id's, change this to long everywhere?
                             cellid = (int)AppDatabase.getInstance(getContext()).locationCellDAO().insert(cell);
                         }
-                        bundle.putInt("cellName", cellid);
-                        Fragment fragment = new CellFragment();
-                        fragment.setArguments(bundle);
-                        //TODO: Bad practice, decouple fragment and activity using some other method, use viewPager
+
                         MainActivity activity = (MainActivity) getContext();
-                        activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).addToBackStack(null).commit();
-                        //activity.setActiveFragment(fragment);
-                        Log.i("CLICK", "RecyclerView Item Click Position");
+                        activity.cellFragment.setCellById(cellid);
+                        activity.setActiveFragment(activity.cellFragment,true);
                     }));
                 }
             }

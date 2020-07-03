@@ -44,7 +44,11 @@ public class CellFragment extends Fragment {
 
     private WifiScanner activeScan = null;
 
-    private void setCell(LocationCell cell) {
+    public void setCellById(int id) {
+        setCell(AppDatabase.getInstance(getContext()).locationCellDAO().get(id));
+    }
+
+    public void setCell(LocationCell cell) {
         selectedCell = cell;
         drawSignaldata();
     }
@@ -120,15 +124,8 @@ public class CellFragment extends Fragment {
         rssiGraph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
     }
 
-    //TODO make sensible code path for this
-    private int initialCell;
-
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        Bundle bundle = this.getArguments();
-        if (bundle != null) {
-            initialCell = (int) bundle.get("cellName");
-        }
         return inflater.inflate(R.layout.cell_fragment, container, false);
     }
 
@@ -220,19 +217,15 @@ public class CellFragment extends Fragment {
         scanButton20x.setOnClickListener(btn -> this.scanClicked(20));
 
         AppDatabase db = AppDatabase.getInstance(getContext());
-        LocationCell cell = db.locationCellDAO().get(initialCell);
 
         changeNameButton.setOnClickListener(v -> {
-            Util.showTextDialog(getContext(), "Set name of cell", cell.getName(), newname -> {
+            Util.showTextDialog(getContext(), "Set name of cell", selectedCell.getName(), newname -> {
                 if (newname != null) {
-                    cell.setName(newname);
-                    db.locationCellDAO().updateLocationCell(cell);
+                    selectedCell.setName(newname);
+                    db.locationCellDAO().updateLocationCell(selectedCell);
                     drawSignaldata();
                 }
             });
         });
-
-        //TODO move this elsewhere
-        setCell(cell);
     }
 }

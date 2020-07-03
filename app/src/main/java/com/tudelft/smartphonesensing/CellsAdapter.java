@@ -34,16 +34,9 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
 
         @Override
         public void onClick(View view) {
-            Bundle bundle = new Bundle();
-            bundle.putInt("cellName",(int) textView.getTag());
-            Fragment fragment = new CellFragment();
-            fragment.setArguments(bundle);
-            //TODO: Bad practice, decouple fragment and activity using some other method, use viewPager
             MainActivity activity = (MainActivity) mContext;
-            activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).addToBackStack(null).commit();
-//            activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).show(fragment).addToBackStack(null).commit();
-
-            //activity.setActiveFragment(fragment);
+            activity.cellFragment.setCellById((int) textView.getTag());
+            activity.setActiveFragment(activity.cellFragment, true);
             Log.i("CLICK", "RecyclerView Item Click Position");
         }
     }
