@@ -73,7 +73,7 @@ public class FloorplanFragment extends Fragment {
             String[] names = meta.stream().map(e -> e.name == null ? "no name" : e.name).toArray(String[]::new);
             Util.showDropdownSpinner(getContext(), "Open floorplan", names, index -> {
                 FloorplanDataDAO.FloorplanMeta choice = meta.get(index);
-                floorview.setFloorplan(db.floorplanDataDAO().getById(choice.id).getFloorplan(), choice.name);
+                floorview.setFloorplan(db.floorplanDataDAO().getById(choice.id).getFloorplan(db), choice.name);
             });
         });
     }

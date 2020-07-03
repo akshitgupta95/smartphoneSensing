@@ -43,11 +43,12 @@ public interface FloorplanDataDAO {
         @ColumnInfo()
         private String layoutJson;
 
-        Floorplan getFloorplan() {
+        Floorplan getFloorplan(AppDatabase db) {
             Floorplan floor = new Floorplan();
+            List<LocationCell> cells = db.locationCellDAO().getAllInFloorplan(id);
             try {
                 JSONObject obj = new JSONObject(layoutJson);
-                floor.deserialize(obj);
+                floor.deserialize(obj, cells);
             } catch (JSONException err) {
                 //TODO add toast message error and remove from database?
                 return null;

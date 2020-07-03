@@ -139,19 +139,18 @@ public class FloorplanView extends View {
                 if (selectedElement instanceof Floorplan.FloorplanBayesCell) {
                     Floorplan.FloorplanBayesCell cellelement = (Floorplan.FloorplanBayesCell) selectedElement;
                     actions.add(Floorplan.ElementAction.shortHand(() -> "Cell Settings", () -> {
-                        //TODO copied from CellsAdapter.java, is this correct, can we combine there calls?
-                        Bundle bundle = new Bundle();
-                        int cellid = cellelement.getCellLocation();
-                        if (cellid == -1) {
-                            LocationCell cell = new LocationCell();
+                        LocationCell cell = cellelement.getCell();
+                        if (cell == null) {
+                            cell = new LocationCell();
                             cell.setName("New cell");
-                            //TODO shit, the room lib uses longs for id's, change this to long everywhere?
-                            cellid = (int)AppDatabase.getInstance(getContext()).locationCellDAO().insert(cell);
+                            int cellid = (int) AppDatabase.getInstance(getContext()).locationCellDAO().insert(cell);
+                            cell.setId(cellid);
+                            cellelement.setCell(cell);
                         }
 
                         MainActivity activity = (MainActivity) getContext();
-                        activity.cellFragment.setCellById(cellid);
-                        activity.setActiveFragment(activity.cellFragment,true);
+                        activity.cellFragment.setCell(cell);
+                        activity.setActiveFragment(activity.cellFragment, true);
                     }));
                 }
             }
@@ -219,9 +218,9 @@ public class FloorplanView extends View {
         floorplan = new Floorplan();
 
         try {
-            floorplan.deserialize(new JSONObject(getContext().getString(R.string.default_floorplan_json)));
+            floorplan.deserialize(new JSONObject(getContext().getString(R.string.default_floorplan_json)), new ArrayList<>());
         } catch (JSONException err) {
-            //TODO toast message
+            Toast.makeText(getContext(), "Failed to initialize default floorplan", Toast.LENGTH_SHORT).show();
         }
 
         setOnTouchListener(new OnTouchListener() {
@@ -387,10 +386,10 @@ public class FloorplanView extends View {
         viewChanged();
     }
 
-    Floorplan.PaintPalette palette;
+    Floorplan.RenderOpts renderOpts = new Floorplan.RenderOpts();
 
     void initPaints() {
-        palette = new Floorplan.PaintPalette();
+        Floorplan.PaintPalette palette = new Floorplan.PaintPalette();
 
         palette.background = new Paint();
         palette.background.setARGB(255, 150, 150, 150);
@@ -410,23 +409,27 @@ public class FloorplanView extends View {
         palette.text.setSubpixelText(true);
         palette.text.setTextAlign(Paint.Align.CENTER);
         palette.text.setStyle(Paint.Style.FILL);
+
+        renderOpts.palette = palette;
+        renderOpts.transform = floorTransform;
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        canvas.drawRect(0, 0, getWidth(), getHeight(), palette.background);
+        renderOpts.selected = selectedElement;
+        canvas.drawRect(0, 0, getWidth(), getHeight(), renderOpts.palette.background);
 
         //save old transforms to stack and transform to map space
         canvas.save();
         canvas.setMatrix(floorTransform);
 
+
         //can now do all rendering in floorplan coordinates (meters)
-        floorplan.render(canvas, palette);
+        floorplan.render(canvas, renderOpts);
         if (selectedElement != null) {
-            canvas.drawPath(selectedElement.getContour(), palette.lines);
-            selectedElement.drawEditInfo(canvas, floorTransform, palette);
+            canvas.drawPath(selectedElement.getContour(), renderOpts.palette.lines);
         }
         if (selectionMode == SelectionMode.PARTICLES && particleModel != null) {
             particleModel.render(canvas);
