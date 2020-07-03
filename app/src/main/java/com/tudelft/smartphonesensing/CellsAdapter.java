@@ -43,7 +43,7 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
             activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).addToBackStack(null).commit();
 //            activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).show(fragment).addToBackStack(null).commit();
 
-            activity.setActiveFragment(fragment);
+            //activity.setActiveFragment(fragment);
             Log.i("CLICK", "RecyclerView Item Click Position");
         }
     }

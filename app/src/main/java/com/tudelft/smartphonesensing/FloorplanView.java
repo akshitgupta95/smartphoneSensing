@@ -154,7 +154,7 @@ public class FloorplanView extends View {
                         //TODO: Bad practice, decouple fragment and activity using some other method, use viewPager
                         MainActivity activity = (MainActivity) getContext();
                         activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).addToBackStack(null).commit();
-                        activity.setActiveFragment(fragment);
+                        //activity.setActiveFragment(fragment);
                         Log.i("CLICK", "RecyclerView Item Click Position");
                     }));
                 }

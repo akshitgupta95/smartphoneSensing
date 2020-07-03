@@ -8,15 +8,20 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+
+import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
 
     final Fragment manageFragment = new ManageFragment();
     final Fragment testFragment = new TestFragment();
     final Fragment floorplanFragment = new FloorplanFragment();
+    final Fragment cellFragment = new CellFragment();
     final FragmentManager fm = getSupportFragmentManager();
+    final Fragment[] tabbedFragments = new Fragment[]{manageFragment, testFragment, floorplanFragment};
 
     public Fragment getActiveFragment() {
         return getSupportFragmentManager()
@@ -25,20 +30,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void setActiveFragment(Fragment active) {
-        this.active = active;
+        FragmentTransaction trans = fm.beginTransaction();
+        Arrays.stream(tabbedFragments).forEach(trans::hide);
+        trans.show(active);
     }
-
-    Fragment active = manageFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         BottomNavigationView navView = findViewById(R.id.bottomNavigationView);
-        fm.beginTransaction().add(R.id.main_container, testFragment, "2").hide(testFragment).commit();
-        fm.beginTransaction().add(R.id.main_container, floorplanFragment, "3").hide(floorplanFragment).commit();
-        fm.beginTransaction().add(R.id.main_container, manageFragment, "1").commit();
+        FragmentTransaction trans=fm.beginTransaction();
+        Arrays.stream(tabbedFragments).forEach(f->trans.add(R.id.main_container,f));
+        trans.commit();
         navView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
+        setActiveFragment(floorplanFragment);
     }
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
@@ -48,12 +54,7 @@ public class MainActivity extends AppCompatActivity {
         public boolean onNavigationItemSelected(@NonNull MenuItem item) {
             switch (item.getItemId()) {
                 case R.id.navigation_train:
-                    Log.v("Fragment", getActiveFragment().toString());
-                    fm.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
-                    fm.beginTransaction().hide(testFragment).commit();
-                    fm.beginTransaction().hide(floorplanFragment).commit();
-                    fm.beginTransaction().hide(getActiveFragment()).show(manageFragment).commit();
-                    active = manageFragment;
+                    setActiveFragment();
                     return true;
 
                 case R.id.navigation_floorplan:
