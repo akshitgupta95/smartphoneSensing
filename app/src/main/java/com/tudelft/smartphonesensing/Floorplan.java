@@ -199,6 +199,11 @@ public class Floorplan {
         //TODO implement observer pattern?
     }
 
+    public void removeElement(FloorElement el) {
+        elements.remove(el);
+        elementsChanged();
+    }
+
     public List<FloorElement> getElements() {
         return elements;
     }
@@ -250,13 +255,13 @@ public class Floorplan {
         setElements(els);
     }
 
-    void render(Canvas canvas) {
+    void render(Canvas canvas, PaintPalette palette) {
         for (Floorplan.FloorElement el : elements) {
-            el.render(canvas);
+            el.render(canvas, palette);
         }
     }
 
-    public interface FloorEditable {
+    public interface FloorEditable extends FloorElement {
         /**
          * @return true if the element occupies floor space at x,y
          */
@@ -281,7 +286,18 @@ public class Floorplan {
          */
         Path getContour();
 
-        void drawEditInfo(Canvas cnv, Matrix transform);
+        void drawEditInfo(Canvas cnv, Matrix transform, PaintPalette palette);
+
+        /**
+         * @return Returns a list of actions that this element has
+         */
+        List<ElementAction> getActions();
+    }
+
+    public interface ElementAction {
+        public String getName();
+
+        public void click();
     }
 
     public interface FloorObstacle {
@@ -310,7 +326,7 @@ public class Floorplan {
          * The canvas is preconfigured with the correct transforms to convert meters in floor space to pixels on screen
          * ex: c.drawRect(0,0,1,1,paint); to draw a 1x1 meter rectangle at the origin of floor space
          */
-        void render(Canvas c);
+        void render(Canvas c, PaintPalette palette);
     }
 
     public static class PolygonObstacle implements FloorElement, FloorObstacle {
@@ -359,7 +375,7 @@ public class Floorplan {
         }
 
         @Override
-        public void render(Canvas c) {
+        public void render(Canvas c, PaintPalette palette) {
             Path p = new Path();
             p.moveTo((float) vertices[0].getX(), (float) vertices[0].getY());
             for (int i = 1; i < vertices.length; i++) {
@@ -367,9 +383,7 @@ public class Floorplan {
             }
             p.close();
 
-            Paint color = new Paint();
-            color.setARGB(255, 100, 100, 100);
-            c.drawPath(p, color);
+            c.drawPath(p, palette.floor);
         }
     }
 
@@ -382,6 +396,11 @@ public class Floorplan {
 
         public void setArea(RectF area) {
             this.area = area;
+        }
+
+        @Override
+        public List<ElementAction> getActions() {
+            return new ArrayList<>();
         }
 
         @Override
@@ -415,10 +434,8 @@ public class Floorplan {
         }
 
         @Override
-        public void render(Canvas c) {
-            Paint fill = new Paint();
-            fill.setARGB(255, 0, 0, 0);
-            c.drawRect(area, fill);
+        public void render(Canvas c, PaintPalette palette) {
+            c.drawRect(area, palette.floor);
         }
 
         @Override
@@ -457,22 +474,21 @@ public class Floorplan {
         }
 
         @Override
-        public void drawEditInfo(Canvas cnv, Matrix transform) {
-            Paint paint = new Paint();
-            paint.setTextSize(60f);
-            paint.setARGB(255, 255, 255, 255);
-            paint.setLinearText(true);
-            paint.setSubpixelText(true);
-            paint.setTextAlign(Paint.Align.CENTER);
-            paint.setStyle(Paint.Style.FILL);
-
+        public void drawEditInfo(Canvas cnv, Matrix transform, PaintPalette palette) {
             float[] center = new float[]{area.centerX(), area.centerY()};
             transform.mapPoints(center);
             cnv.save();
             cnv.setMatrix(new Matrix());
-            cnv.drawText(String.format(Locale.US,"%.1fx%.1f m", area.width(), area.height()), center[0], center[1], paint);
+            cnv.drawText(String.format(Locale.US, "%.1fx%.1f m", area.width(), area.height()), center[0], center[1], palette.text);
             cnv.restore();
         }
+    }
+
+    public static class PaintPalette {
+        public Paint background;
+        public Paint floor;
+        public Paint lines;
+        public Paint text;
     }
 
 

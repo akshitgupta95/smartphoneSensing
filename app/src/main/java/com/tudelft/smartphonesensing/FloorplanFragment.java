@@ -5,7 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.Toast;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,14 +25,25 @@ public class FloorplanFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         Button editButton = this.getView().findViewById(R.id.floorplanEditButton);
-        Button saveButton = this.getView().findViewById(R.id.floorplanSaveButton);
-        Button loadButton = this.getView().findViewById(R.id.floorplanLoadButton);
-        Button addRectButton = this.getView().findViewById(R.id.floorplanAddRectButton);
-        Button setNorthButton = this.getView().findViewById(R.id.floorplanNorthButton);
         Button particlesButton = this.getView().findViewById(R.id.floorplanParticlesButton);
-        Button simButton = this.getView().findViewById(R.id.floorplanSimButton);
+        Button loadButton = this.getView().findViewById(R.id.floorplanLoadButton);
+        LinearLayout buttonContainer = this.getView().findViewById(R.id.floorplanButtons);
         FloorplanView floorview = this.getView().findViewById(R.id.floorplanView);
         floorview.setParticleModel(model);
+
+        Runnable buttonsChanged = () -> {
+            buttonContainer.removeAllViews();
+            List<Floorplan.ElementAction> actions = floorview.getActions();
+            for (Floorplan.ElementAction action : actions) {
+                Button btn = new Button(getContext());
+                btn.setText(action.getName());
+                btn.setOnClickListener(v -> action.click());
+                buttonContainer.addView(btn);
+            }
+        };
+
+        floorview.addButtonListener(buttonsChanged);
+        buttonsChanged.run();
 
         Consumer<FloorplanView.SelectionMode> clickMode = (mode) -> {
             FloorplanView.SelectionMode currentmode = floorview.getSelectionMode();
@@ -50,34 +61,10 @@ public class FloorplanFragment extends Fragment {
                 floorview.invalidate();
             }
             floorview.setSelectionMode(mode);
-            addRectButton.setVisibility(mode == FloorplanView.SelectionMode.EDITING ? View.VISIBLE : View.INVISIBLE);
-            setNorthButton.setVisibility(mode == FloorplanView.SelectionMode.EDITING ? View.VISIBLE : View.INVISIBLE);
-            simButton.setVisibility(mode == FloorplanView.SelectionMode.PARTICLES ? View.VISIBLE : View.INVISIBLE);
         };
 
-        setNorthButton.setOnClickListener(btn -> {
-            floorview.setNorth();
-            Toast.makeText(getContext(), "Alligned map to phone axis", Toast.LENGTH_LONG).show();
-        });
-        addRectButton.setOnClickListener(btn -> floorview.addRectangleObstacle());
         editButton.setOnClickListener(btn -> clickMode.accept(FloorplanView.SelectionMode.EDITING));
         particlesButton.setOnClickListener(btn -> clickMode.accept(FloorplanView.SelectionMode.PARTICLES));
-
-        saveButton.setOnClickListener(btn -> {
-            Util.showTextDialog(getContext(), "Save floorplan as", floorview.getFloorplanName(), (name) -> {
-                if (name != null) {
-                    if (!name.equals(floorview.getFloorplanName())) {
-                        floorview.setFloorplan(floorview.getFloorplan(), name);
-                    }
-                    AppDatabase db = AppDatabase.getInstance(getContext());
-                    FloorplanDataDAO.FloorplanData floordata = new FloorplanDataDAO.FloorplanData();
-                    floordata.setFloorplan(floorview.getFloorplan(), floorview.getFloorplanName());
-                    //TODO do something with id here, currently saving a seperate version every time
-                    //use name as primary key?
-                    db.floorplanDataDAO().InsertAll(floordata);
-                }
-            });
-        });
 
         loadButton.setOnClickListener(btn -> {
             AppDatabase db = AppDatabase.getInstance(getContext());
@@ -88,12 +75,6 @@ public class FloorplanFragment extends Fragment {
                 FloorplanDataDAO.FloorplanMeta choice = meta.get(index);
                 floorview.setFloorplan(db.floorplanDataDAO().getById(choice.id).getFloorplan(), choice.name);
             });
-        });
-
-        simButton.setOnClickListener(btn -> {
-            boolean issim = floorview.getSimulating();
-            floorview.setSimulating(!issim);
-            simButton.setText(!issim ? "Stop" : "Simulate");
         });
     }
 }
