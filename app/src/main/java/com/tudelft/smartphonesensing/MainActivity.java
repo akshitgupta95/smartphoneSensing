@@ -14,6 +14,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.Stack;
 
 public class MainActivity extends AppCompatActivity {
 
+    BottomNavigationView navView;
     final ManageFragment manageFragment = new ManageFragment();
     final TestFragment predictFragment = new TestFragment();
     final FloorplanFragment floorplanFragment = new FloorplanFragment();
@@ -29,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
     final FragmentManager fm = getSupportFragmentManager();
     final List<Fragment> tabbedFragments = Arrays.asList(manageFragment, predictFragment, floorplanFragment);
     final List<Fragment> allFragments = Arrays.asList(manageFragment, predictFragment, floorplanFragment, cellFragment);
+    final HashMap<Integer, Fragment> menumap = new HashMap<>();
 
     Stack<Fragment> fragmentStack = new Stack<>();
     Fragment activeFragment = null;
@@ -48,6 +51,10 @@ public class MainActivity extends AppCompatActivity {
         trans.commit();
         activeFragment = active;
         backcallback.setEnabled(fragmentStack.size() > 0);
+
+        //TODO is there a better way to reverse lookup a key/value pair?
+        int activemanu = menumap.keySet().stream().filter(k -> menumap.get(k) == active).findFirst().orElse(-1);
+        navView.setSelectedItemId(activemanu);
     }
 
     OnBackPressedCallback backcallback = new OnBackPressedCallback(false) {
@@ -62,26 +69,25 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        menumap.put(R.id.navigation_manage, manageFragment);
+        menumap.put(R.id.navigation_floorplan, floorplanFragment);
+        menumap.put(R.id.navigation_predict, predictFragment);
+
         setContentView(R.layout.activity_main);
-        BottomNavigationView navView = findViewById(R.id.bottomNavigationView);
+        navView = findViewById(R.id.bottomNavigationView);
         FragmentTransaction trans = fm.beginTransaction();
         allFragments.forEach(f -> trans.add(R.id.main_container, f));
         trans.commit();
         setActiveFragment(floorplanFragment, true);
 
-        navView.setOnNavigationItemSelectedListener(item -> {
-            switch (item.getItemId()) {
-                case R.id.navigation_manage:
-                    setActiveFragment(manageFragment, true);
-                    return true;
-                case R.id.navigation_floorplan:
-                    setActiveFragment(floorplanFragment, true);
-                    return true;
-                case R.id.navigation_predict:
-                    setActiveFragment(predictFragment, true);
-                    return true;
+        navView.setOnNavigationItemSelectedListener(view -> {
+            Fragment newfrag = menumap.get(view.getItemId());
+            if (newfrag == null || activeFragment == newfrag) {
+                return false;
             }
-            return false;
+            setActiveFragment(newfrag, true);
+            return true;
         });
 
         // This callback will only be called when MyFragment is at least Started.
