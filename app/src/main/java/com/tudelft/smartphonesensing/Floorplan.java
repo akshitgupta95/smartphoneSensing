@@ -31,7 +31,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Observable;
 import java.util.Stack;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import mxb.jts.triangulate.EarClipper;
@@ -39,13 +41,36 @@ import mxb.jts.triangulate.EarClipper;
 public class Floorplan {
     private List<FloorElement> elements = new ArrayList<>();
     private double northAngleOffset = 0;
+    private int id;
+    private String name;
 
     static final String ELEMENT_POLYGON = "poly";
     static final String ELEMENT_RECTANGLE = "rectangle";
     static final String ELEMENT_FLOORPLAN = "floorplan";
 
+    static Floorplan load(AppDatabase db, FloorplanDataDAO.FloorplanData data) throws JSONException {
+        Floorplan floor = new Floorplan(data.getId(), data.getName());
+        List<LocationCell> cells = db.locationCellDAO().getAllInFloorplan(data.getId());
+        JSONObject obj = new JSONObject(data.getLayoutJson());
+        floor.deserialize(obj, cells);
+        return floor;
+    }
 
-    Floorplan() {
+    private Floorplan(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
     }
 
     public double getNorthAngleOffset() {
@@ -225,7 +250,7 @@ public class Floorplan {
         return obj;
     }
 
-    public void deserialize(JSONObject obj) throws JSONException {
+    public void deserialize(JSONObject obj, List<LocationCell> cells) throws JSONException {
         List<FloorElement> els = new ArrayList<>();
         JSONArray children = obj.getJSONArray("children");
         for (int i = 0; i < children.length(); i++) {
@@ -244,7 +269,7 @@ public class Floorplan {
                 default:
                     throw new JSONException(String.format("Unknown obstacle type: %s", child.getString("type")));
             }
-            newel.deserialize(child);
+            newel.deserialize(child, cells);
             els.add(newel);
         }
         try {
@@ -255,10 +280,25 @@ public class Floorplan {
         setElements(els);
     }
 
-    void render(Canvas canvas, PaintPalette palette) {
+    public static class RenderOpts {
+        public FloorElement selected;
+        public Matrix transform;
+        public PaintPalette palette;
+    }
+
+    void render(Canvas canvas, RenderOpts opts) {
         for (Floorplan.FloorElement el : elements) {
-            el.render(canvas, palette);
+            el.renderBackground(canvas, opts);
         }
+        for (Floorplan.FloorElement el : elements) {
+            el.renderForeground(canvas, opts);
+        }
+    }
+
+    public interface FloorplanBayesCell {
+        LocationCell getCell();
+
+        void setCell(LocationCell loc);
     }
 
     public interface FloorEditable extends FloorElement {
@@ -286,8 +326,6 @@ public class Floorplan {
          */
         Path getContour();
 
-        void drawEditInfo(Canvas cnv, Matrix transform, PaintPalette palette);
-
         /**
          * @return Returns a list of actions that this element has
          */
@@ -295,9 +333,23 @@ public class Floorplan {
     }
 
     public interface ElementAction {
-        public String getName();
+        String getName();
 
-        public void click();
+        void click();
+
+        static ElementAction shortHand(Supplier<String> getName, Runnable onClick) {
+            return new ElementAction() {
+                @Override
+                public String getName() {
+                    return getName.get();
+                }
+
+                @Override
+                public void click() {
+                    onClick.run();
+                }
+            };
+        }
     }
 
     public interface FloorObstacle {
@@ -319,14 +371,16 @@ public class Floorplan {
          *
          * @param props the serialized properties returned by serialize
          */
-        void deserialize(JSONObject props) throws JSONException;
+        void deserialize(JSONObject props, List<LocationCell> cells) throws JSONException;
 
         /**
          * Used to render a graphical representation of the obstacle
          * The canvas is preconfigured with the correct transforms to convert meters in floor space to pixels on screen
          * ex: c.drawRect(0,0,1,1,paint); to draw a 1x1 meter rectangle at the origin of floor space
          */
-        void render(Canvas c, PaintPalette palette);
+        void renderBackground(Canvas c, RenderOpts opts);
+
+        void renderForeground(Canvas c, RenderOpts opts);
     }
 
     public static class PolygonObstacle implements FloorElement, FloorObstacle {
@@ -364,7 +418,7 @@ public class Floorplan {
         }
 
         @Override
-        public void deserialize(JSONObject props) throws JSONException {
+        public void deserialize(JSONObject props, List<LocationCell> cells) throws JSONException {
             List<Coordinate> vertices = new ArrayList<>();
             JSONArray verts = props.getJSONArray("vertices");
             for (int i = 0; i < verts.length(); i++) {
@@ -375,7 +429,7 @@ public class Floorplan {
         }
 
         @Override
-        public void render(Canvas c, PaintPalette palette) {
+        public void renderBackground(Canvas c, RenderOpts opts) {
             Path p = new Path();
             p.moveTo((float) vertices[0].getX(), (float) vertices[0].getY());
             for (int i = 1; i < vertices.length; i++) {
@@ -383,12 +437,17 @@ public class Floorplan {
             }
             p.close();
 
-            c.drawPath(p, palette.floor);
+            c.drawPath(p, opts.palette.floor);
+        }
+
+        @Override
+        public void renderForeground(Canvas c, RenderOpts opts) {
         }
     }
 
-    public static class RectangleObstacle implements FloorElement, FloorObstacle, FloorEditable {
+    public static class RectangleObstacle implements FloorElement, FloorObstacle, FloorEditable, FloorplanBayesCell {
         RectF area = new RectF();
+        LocationCell cell = null;
 
         public RectF getArea() {
             return area;
@@ -422,20 +481,41 @@ public class Floorplan {
             props.put("right", area.right);
             props.put("bottom", area.bottom);
             props.put("type", ELEMENT_RECTANGLE);
+            props.put("cellid", (cell == null ? -1 : cell.getId()));
             return props;
         }
 
         @Override
-        public void deserialize(JSONObject props) throws JSONException {
+        public void deserialize(JSONObject props, List<LocationCell> cells) throws JSONException {
             area.left = (float) props.getDouble("left");
             area.top = (float) props.getDouble("top");
             area.right = (float) props.getDouble("right");
             area.bottom = (float) props.getDouble("bottom");
+            int celid = props.getInt("cellid");
+            cell = cells.stream().filter(c -> c.getId() == celid).findFirst().orElse(null);
         }
 
         @Override
-        public void render(Canvas c, PaintPalette palette) {
-            c.drawRect(area, palette.floor);
+        public void renderBackground(Canvas c, RenderOpts opts) {
+            c.drawRect(area, opts.palette.floor);
+        }
+
+        @Override
+        public void renderForeground(Canvas c, RenderOpts opts) {
+            String text = null;
+            if (opts.selected == this) {
+                text = String.format(Locale.US, "%.1fx%.1f m", area.width(), area.height());
+            } else if (cell != null) {
+                text = cell.getName();
+            }
+            if (text != null) {
+                float[] center = new float[]{area.centerX(), area.centerY()};
+                opts.transform.mapPoints(center);
+                c.save();
+                c.setMatrix(new Matrix());
+                c.drawText(text, center[0], center[1], opts.palette.text);
+                c.restore();
+            }
         }
 
         @Override
@@ -474,13 +554,13 @@ public class Floorplan {
         }
 
         @Override
-        public void drawEditInfo(Canvas cnv, Matrix transform, PaintPalette palette) {
-            float[] center = new float[]{area.centerX(), area.centerY()};
-            transform.mapPoints(center);
-            cnv.save();
-            cnv.setMatrix(new Matrix());
-            cnv.drawText(String.format(Locale.US, "%.1fx%.1f m", area.width(), area.height()), center[0], center[1], palette.text);
-            cnv.restore();
+        public LocationCell getCell() {
+            return cell;
+        }
+
+        @Override
+        public void setCell(LocationCell loc) {
+            cell = loc;
         }
     }
 

@@ -14,19 +14,15 @@ public interface ScanDAO {
     @Insert
     void InsertAll(Scan... scanresults);
 
-    //Get all locations in the database
-    @Query("SELECT DISTINCT loc FROM Scan")
-    List<String> getAllLocations();
-
     // Get all scans from a certain location
     @Query("SELECT * FROM Scan WHERE loc = :loc")
-    List<Scan> getAllScansAtLocation(String loc);
+    List<Scan> getAllScansAtLocation(int loc);
 
     // Get all mac addresses at a location
     @Query("SELECT distinct MAC from Scan WHERE loc = :loc")
-    List<Long> getAllMacsAtLocation(String loc);
+    List<Long> getAllMacsAtLocation(int loc);
 
     // Get all scans with given mac address and location
     @Query("SELECT * FROM scan WHERE loc = :loc AND MAC = :mac")
-    List<Scan> getAllScansWithMacAndLocation(String loc, long mac);
+    List<Scan> getAllScansWithMacAndLocation(int loc, long mac);
 }

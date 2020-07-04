@@ -17,6 +17,8 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 
+import javax.xml.namespace.NamespaceContext;
+
 public class ManageFragment extends Fragment implements View.OnClickListener, AdapterView.OnItemClickListener {
 
 
@@ -24,7 +26,7 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
     private RecyclerView.Adapter mAdapter;
     private RecyclerView.LayoutManager layoutManager;
     private FloatingActionButton addCellFab;
-    ArrayList<String> data = new ArrayList<>();
+    ArrayList<LocationCell> data = new ArrayList<>();
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -39,8 +41,7 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
         final AppDatabase db = AppDatabase.getInstance(getContext());
         data.clear();
 
-        //TODO currently cells without data are lost when reopening the app, maybe second table with all locations?
-        data.addAll(db.scanDAO().getAllLocations());
+        data.addAll(db.locationCellDAO().getAll());
 
         recyclerView = getView().findViewById(R.id.cells_rv);
         addCellFab = getView().findViewById(R.id.addCell);
@@ -68,16 +69,14 @@ public class ManageFragment extends Fragment implements View.OnClickListener, Ad
     }
 
     private void addCell() {
-        //TODO: generate a popup asking user for name of cell
-        String name = "";
-        for (char namechar = 'A'; namechar <= 'Z'; namechar++) {
-            name = Character.toString((char) namechar);
-            if (!data.contains(name)) {
-                break;
+        Util.showTextDialog(getContext(), "New cell name?", "", newname -> {
+            if (newname != null) {
+                LocationCell cell = new LocationCell();
+                cell.setName(newname);
+                AppDatabase.getInstance(getContext()).locationCellDAO().insert(cell);
+                mAdapter.notifyDataSetChanged();
             }
-        }
-        data.add(name);
-        mAdapter.notifyDataSetChanged();
+        });
     }
 
     @Override

@@ -6,21 +6,32 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import org.json.JSONException;
+
 import java.util.List;
 import java.util.function.Consumer;
 
 public class FloorplanFragment extends Fragment {
-    ParticleModel model = new ParticleModel();
+    ModelState model = MainActivity.modelState;
+    FloorplanView floorview;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         return inflater.inflate(R.layout.floorplan_fragment, container, false);
     }
+
+    private Consumer<Floorplan> floorchange = (floor) -> {
+        floorview.floorplanChanged();
+    };
+    private Consumer<Void> predictionUpdate = (nil) -> {
+        floorview.invalidate();
+    };
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
@@ -28,8 +39,7 @@ public class FloorplanFragment extends Fragment {
         Button particlesButton = this.getView().findViewById(R.id.floorplanParticlesButton);
         Button loadButton = this.getView().findViewById(R.id.floorplanLoadButton);
         LinearLayout buttonContainer = this.getView().findViewById(R.id.floorplanButtons);
-        FloorplanView floorview = this.getView().findViewById(R.id.floorplanView);
-        floorview.setParticleModel(model);
+        floorview = this.getView().findViewById(R.id.floorplanView);
 
         Runnable buttonsChanged = () -> {
             buttonContainer.removeAllViews();
@@ -53,28 +63,24 @@ public class FloorplanFragment extends Fragment {
             editButton.setText(mode == FloorplanView.SelectionMode.EDITING ? "Done" : "Edit");
             particlesButton.setText(mode == FloorplanView.SelectionMode.PARTICLES ? "Done" : "Particles");
 
-            if (mode == FloorplanView.SelectionMode.PARTICLES) {
-                Floorplan map = floorview.getFloorplan();
-                model.setBoxes(map.getWalkable());
-                model.setNorthAngleOffset(map.getNorthAngleOffset());
-                model.spawnParticles(10000);
-                floorview.invalidate();
-            }
+            model.setRunning(mode == FloorplanView.SelectionMode.PARTICLES);
             floorview.setSelectionMode(mode);
         };
 
         editButton.setOnClickListener(btn -> clickMode.accept(FloorplanView.SelectionMode.EDITING));
         particlesButton.setOnClickListener(btn -> clickMode.accept(FloorplanView.SelectionMode.PARTICLES));
+        loadButton.setOnClickListener(btn -> MainActivity.modelState.selectFloorMenu());
 
-        loadButton.setOnClickListener(btn -> {
-            AppDatabase db = AppDatabase.getInstance(getContext());
-            List<FloorplanDataDAO.FloorplanMeta> meta = db.floorplanDataDAO().getAllNames();
+        //listen for model events
+        model.floorplanChange.listen(floorchange);
+        model.predictionUpdate.listen(predictionUpdate);
+    }
 
-            String[] names = meta.stream().map(e -> e.name == null ? "no name" : e.name).toArray(String[]::new);
-            Util.showDropdownSpinner(getContext(), "Open floorplan", names, index -> {
-                FloorplanDataDAO.FloorplanMeta choice = meta.get(index);
-                floorview.setFloorplan(db.floorplanDataDAO().getById(choice.id).getFloorplan(), choice.name);
-            });
-        });
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        //remove listeners to prevent mem leak
+        model.floorplanChange.remove(floorchange);
+        model.predictionUpdate.remove(predictionUpdate);
     }
 }
