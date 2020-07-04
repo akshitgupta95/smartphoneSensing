@@ -26,7 +26,6 @@ public class FloorplanView extends View {
     enum SelectionMode {VIEWING, EDITING, PARTICLES}
 
     SelectionMode selectionMode = SelectionMode.VIEWING;
-    MotionTracker tracker;
     ModelState model;
     boolean simulating = false;
     float viewportWidthMeters = 5;
@@ -81,7 +80,7 @@ public class FloorplanView extends View {
         }
         if (this.selectionMode == SelectionMode.EDITING) {
             actions.add(Floorplan.ElementAction.shortHand(() -> "Add rect", this::addRectangleObstacle));
-            actions.add(Floorplan.ElementAction.shortHand(() -> "Align", this::setNorth));
+            actions.add(Floorplan.ElementAction.shortHand(() -> "Align", model::AlignFloorAxis));
 
 
             if (selectedElement != null) {
@@ -139,13 +138,6 @@ public class FloorplanView extends View {
         floorTransform.postTranslate(0.5f, 0.5f);//put origin in center of screen
         floorTransform.postScale(getWidth(), getHeight());//convert to pixel coords
         floorTransform.invert(floorTransformInverse);
-        invalidate();
-    }
-
-    void setNorth() {
-        double angle = tracker.get2dNorthAngle();
-        model.getFloorplan().setNorthAngleOffset(angle);
-        Toast.makeText(getContext(), "Alligned map to phone axis", Toast.LENGTH_LONG).show();
         invalidate();
     }
 

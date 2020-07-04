@@ -132,13 +132,158 @@ public class MotionTracker implements SensorEventListener {
 
     private double lastStepTime = 0;
     private final double stepCooldown = 0.3;
+    private double stepSizeMeters = 0.4;
+
     private final double characteristicWindowtime = 3.0;
     private AccelMeasurement lastMeasurement = null;
     private final int windowSize = 70;
     private List<AccelMeasurement> history = new LinkedList<>();
     private Vec3 avgMagnitude = new Vec3(0, 0, 0);
-    private double stepSizeMeters = 0.4;
     private double walkvelocity = 4f / 3.6;//4km/hr->m/s
+    private double sampleInterval = 0.02;
+
+
+    private void detectStepFourier() {
+        double[] fftdata = new double[windowSize * 2];
+        int i = 0;
+        for (AccelMeasurement mdata : history) {
+            fftdata[i * 2] = mdata.accelWorld.z;
+            fftdata[i * 2 + 1] = 0;
+            i++;
+        }
+        DoubleFFT_1D fft = new DoubleFFT_1D(windowSize);
+        fft.complexForward(fftdata);
+
+        //70 samples at 50hz->1.4sec window
+        //[8-11] range=> [8-11]/1.4sec hz sec=[5.7-7.8]hz
+        //kinda looks like the natural frequency of my arm instead of the frequency of walking, but seems more reliable
+        //the value of 20 is experimental
+        double maxabs = 0;
+        for (int j = 8; j <= 11; j++) {
+            double abs = Math.sqrt(fftdata[j * 2] * fftdata[j * 2] + fftdata[j * 2 + 1] * fftdata[j * 2 + 1]);
+            maxabs = Math.max(maxabs, abs);
+        }
+        if (maxabs > 20) {
+            //the fourier introduces some lag, get the direction of the middle of the window
+            AccelMeasurement middlemeasure = history.get(history.size() - windowSize / 2);
+            double dist = walkvelocity / 50;
+            triggerStep(dist, middlemeasure);
+        }
+    }
+
+    private void triggerStep(double dist, AccelMeasurement dirmeasure) {
+        Vec3 dir = dirmeasure.orientation.conjugate().permute(new Vec3(0, 1, 0));
+        double hormag = Math.sqrt(dir.x * dir.x + dir.y * dir.y);
+        onmove.accept(dir.x / hormag * dist, dir.y / hormag * dist);
+    }
+
+    private double peaktopeak(List<AccelMeasurement> hist, int start, int end) {
+        double submin = Double.POSITIVE_INFINITY;
+        double submax = Double.NEGATIVE_INFINITY;
+        for (int i = start; i < end; i++) {
+            double accel = history.get(i).accelWorld.z;
+            submin = Math.min(submin, accel);
+            submax = Math.max(submax, accel);
+        }
+        return submax - submin;
+    }
+
+    private void detectStepHandcraft2() {
+        final double highwindow = 0.12;
+        final double lowwindow = 0.18;
+        int highsamples = (int) Math.round(highwindow / sampleInterval);
+        int lowsamples = (int) Math.round(lowwindow / sampleInterval);
+
+        int index = history.size();
+
+        double highp2p = peaktopeak(history, index - highsamples, index);
+        index -= highsamples;
+        double lowp2p = peaktopeak(history, index - lowsamples, index);
+
+        final double multiplier = 2.0;
+        final double mincap = 10.5;
+        final double maxcap = 3.2;
+        AccelMeasurement accel = history.get(history.size() - 1);
+        if (highp2p > multiplier * lowp2p && lowp2p < mincap && highp2p > maxcap && lastStepTime + stepCooldown < accel.time) {
+            triggerStep(stepSizeMeters, accel);
+            lastStepTime = accel.time;
+        }
+        if (lowp2p < highp2p) {
+            Log.v("ACCEL", String.format(Locale.US, "%.2f, %.2f", lowp2p, highp2p));
+        }
+    }
+
+    private void detectStepHandcraft() {
+        final double windowtime = 0.4;
+        final double subwindowtime = 0.15;
+
+        int numsamples = (int) Math.round(windowtime / sampleInterval);
+        int numsubsamples = (int) Math.round(subwindowtime / sampleInterval);
+
+        double avgsum = 0;
+        for (int i = 0; i < history.size(); i++) {
+            avgsum += history.get(i).accelWorld.z;
+        }
+        double windowavg = avgsum / history.size();
+
+        double sum = 0;
+        double minp2p = Double.POSITIVE_INFINITY;
+        double maxp2p = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < numsamples - numsubsamples; i++) {
+            double submin = Double.POSITIVE_INFINITY;
+            double submax = Double.NEGATIVE_INFINITY;
+            for (int j = 0; j < numsubsamples; j++) {
+                int histindex = history.size() - 1 - i - j;
+                double accel = history.get(histindex).accelWorld.z;
+                submin = Math.min(submin, accel);
+                submax = Math.max(submax, accel);
+            }
+            double p2p = submax - submin;
+            minp2p = Math.min(minp2p, p2p);
+            maxp2p = Math.max(maxp2p, p2p);
+        }
+
+        Log.v("ACCEL", String.format(Locale.US, "%.2f, %.2f", minp2p, maxp2p));
+        final double multiplier = 2.0;
+        final double mincap = 1.5;
+        final double maxcap = 4.0;
+        AccelMeasurement accel = history.get(history.size() - 1);
+        if (maxp2p > multiplier * minp2p && minp2p < mincap && maxp2p > maxcap && lastStepTime + stepCooldown < accel.time) {
+            triggerStep(stepSizeMeters, accel);
+            lastStepTime = accel.time;
+        }
+    }
+
+    private void detectStepAvg() {
+        final double avgwindowsec = 1.2;
+        final double smoothwindowsec = 0.3;
+        final double stepTreshold = 1.0;
+
+
+        int windowsize = (int) Math.round(avgwindowsec / sampleInterval);
+        double runningsum = 0;
+
+        double[] avg = new double[history.size()];
+
+        for (int i = 0; i < history.size(); i++) {
+            AccelMeasurement front = history.get(i);
+            runningsum += front.accelWorld.z;
+
+            if (i - windowsize > 0) {
+                AccelMeasurement back = history.get(i - windowsize);
+                runningsum -= back.accelWorld.z;
+            }
+            avg[i] = runningsum / windowsize;
+        }
+
+        double backdiff = avg[avg.length - 2] - avg[avg.length - 3];
+        double frontdiff = avg[avg.length - 1] - avg[avg.length - 2];
+        AccelMeasurement last = history.get(history.size() - 1);
+        if (backdiff > 0 && frontdiff < 0 && avg[avg.length - 1] > stepTreshold && lastStepTime + stepCooldown < last.time) {
+            lastStepTime = last.time;
+            triggerStep(stepSizeMeters, last);
+        }
+    }
 
     private void newMeasurement(SensorEvent event) {
         AccelMeasurement measurement = new AccelMeasurement(event.values, event.timestamp, lastRotation);
@@ -148,34 +293,10 @@ public class MotionTracker implements SensorEventListener {
         }
 
         if (history.size() == windowSize) {
-            double[] fftdata = new double[windowSize * 2];
-            int i = 0;
-            for (AccelMeasurement mdata : history) {
-                fftdata[i * 2] = mdata.accelWorld.z;
-                fftdata[i * 2 + 1] = 0;
-                i++;
-            }
-            DoubleFFT_1D fft = new DoubleFFT_1D(windowSize);
-            fft.complexForward(fftdata);
-
-            boolean walking = false;
-            //70 samples at 50hz->1.4sec window
-            //[8-11] range=> [8-11]/1.4sec hz sec=[5.7-7.8]hz
-            //kinda looks like the natural frequency of my arm instead of the frequency of walking, but seems more reliable
-            //the value of 20 is experimental
-            double maxabs = 0;
-            for (int j = 8; j <= 11; j++) {
-                double abs = Math.sqrt(fftdata[j * 2] * fftdata[j * 2] + fftdata[j * 2 + 1] * fftdata[j * 2 + 1]);
-                maxabs = Math.max(maxabs, abs);
-            }
-            if (maxabs > 20) {
-                //the fourier introduces some lag, get the direction of the middle of the window
-                AccelMeasurement middlemeasure = history.get(history.size() - windowSize / 2);
-                Vec3 dir = middlemeasure.orientation.conjugate().permute(new Vec3(0, 1, 0));
-                double hormag = Math.sqrt(dir.x * dir.x + dir.y * dir.y);
-                double dist = walkvelocity / 50;
-                onmove.accept(dir.x / hormag * dist, dir.y / hormag * dist);
-            }
+            //detectStepFourier();
+            //detectStepAvg();
+            //detectStepHandcraft();
+            detectStepHandcraft2();
         }
 
         /*

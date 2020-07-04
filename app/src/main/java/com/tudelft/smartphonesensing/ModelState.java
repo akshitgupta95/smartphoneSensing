@@ -16,14 +16,24 @@ public class ModelState {
     private Floorplan floorplan = null;
     private boolean running = false;
     private MotionTracker motionTracker;
-    private Context context;
+    private Context context = null;
 
     public final Util.EventSource<Floorplan> floorplanChange = new Util.EventSource<>();
     public final Util.EventSource<Floorplan> particlemodelChange = new Util.EventSource<>();
     public final Util.EventSource<Void> predictionUpdate = new Util.EventSource<>();
 
     void setContext(Context context) {
+        if (this.context != null) {
+            throw new RuntimeException("context already set");
+        }
         this.context = context;
+
+
+        motionTracker = new MotionTracker(context, (dx, dy) -> {
+            if (particleModel != null && running) {
+                moveParticles(dx, dy);
+            }
+        });
     }
 
     public void selectFloorMenu() {
@@ -68,19 +78,6 @@ public class ModelState {
             particleModel.setBoxes(floorplan.getWalkable());
             particleModel.setNorthAngleOffset(floorplan.getNorthAngleOffset());
             particleModel.spawnParticles(10000);
-
-            if (motionTracker == null) {
-                motionTracker = new MotionTracker(context, (dx, dy) -> {
-                    if (particleModel != null && running) {
-                        moveParticles(dx, dy);
-                    }
-                });
-            }
-        } else {
-            if (motionTracker != null) {
-                motionTracker.free();
-                motionTracker = null;
-            }
         }
     }
 
@@ -101,6 +98,12 @@ public class ModelState {
 
     public Floorplan getFloorplan() {
         return floorplan;
+    }
+
+    public void AlignFloorAxis() {
+        double angle = motionTracker.get2dNorthAngle();
+        floorplan.setNorthAngleOffset(angle);
+        Toast.makeText(context, "Aligned map to phone axis", Toast.LENGTH_LONG).show();
     }
 
     public ParticleModel getParticleModel() {
