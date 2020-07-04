@@ -16,7 +16,6 @@ public class Bayes {
     Context context;
 
 
-
     List<LocationMacTable> locationMacTables = new ArrayList<>();
     List<String> usableMacs = new ArrayList<>();
 
@@ -40,12 +39,12 @@ public class Bayes {
             return (sampler == null ? 0 : sampler.sample(rssi));
         }
 
-        double calculateProb(long mac, double rssi){
-            double prob=0;
-            for(double j=rssi-0.5;j<rssi+0.5;j=j+0.05){
+        double calculateProb(long mac, double rssi) {
+            double prob = 0;
+            for (double j = rssi - 0.5; j < rssi + 0.5; j = j + 0.05) {
                 GaussianSampler sampler = table.get(mac);
-                double value= (sampler == null ? 0 : sampler.sample(j));
-                prob+=j*value;
+                double value = (sampler == null ? 0 : sampler.sample(j));
+                prob += j * value;
 
             }
             return prob;
@@ -89,7 +88,7 @@ public class Bayes {
                 return 0;
             }
             //TODO find better solution to deal with stddev==0 and remove magic constant
-            double roundedStd = Math.max(0.1,stddev);
+            double roundedStd = Math.max(0.1, stddev);
             return (1 / (roundedStd * Math.sqrt(2 * Math.PI))) * Math.exp(-(rssi - mean) * (rssi - mean) / (2 * roundedStd * roundedStd));
         }
 
@@ -176,7 +175,7 @@ public class Bayes {
         //TODO locationlist could be empty, show a message and quit
         //initialize set of candidates with equal probabilities
         //no need to normalize yet
-        double baseprob = 1.0/locationMacTables.size();
+        double baseprob = 1.0 / locationMacTables.size();
         List<cellCandidate> candidateList = locationMacTables.stream()
                 .map(l -> new cellCandidate(baseprob, l))
                 .collect(Collectors.toList());
@@ -195,15 +194,15 @@ public class Bayes {
         outerloop:
         for (ScanResult scan : scanResults) {
             long curMAC = Util.macStringToLong(scan.BSSID);
-            double curLevel = WifiManager.calculateSignalLevel(scan.level, 46)+normalisationGain;
+            double curLevel = WifiManager.calculateSignalLevel(scan.level, 46) + normalisationGain;
 
             //P(Cell/rssj)=P(rssj/Cell)*P(Cell)/P(rssj)
             //p(rssj)=p(cell1)*p(rssj/cell1)+p(cell2)*p(rssj/cell2).....
-            double rssj=0;
-            for(cellCandidate cand:candidateList){
-                rssj+= cand.macTable.calculateProb(curMAC, curLevel)*cand.probability;
+            double rssj = 0;
+            for (cellCandidate cand : candidateList) {
+                rssj += cand.macTable.calculateProb(curMAC, curLevel) * cand.probability;
             }
-            if(rssj!=0) {
+            if (rssj != 0) {
                 for (cellCandidate cand : candidateList) {
                     double sampledP = cand.macTable.calculateProb(curMAC, curLevel);
                     cand.probability *= sampledP;
