@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Observable;
 import java.util.Stack;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -40,13 +41,36 @@ import mxb.jts.triangulate.EarClipper;
 public class Floorplan {
     private List<FloorElement> elements = new ArrayList<>();
     private double northAngleOffset = 0;
+    private int id;
+    private String name;
 
     static final String ELEMENT_POLYGON = "poly";
     static final String ELEMENT_RECTANGLE = "rectangle";
     static final String ELEMENT_FLOORPLAN = "floorplan";
 
+    static Floorplan load(AppDatabase db, FloorplanDataDAO.FloorplanData data) throws JSONException {
+        Floorplan floor = new Floorplan(data.getId(), data.getName());
+        List<LocationCell> cells = db.locationCellDAO().getAllInFloorplan(data.getId());
+        JSONObject obj = new JSONObject(data.getLayoutJson());
+        floor.deserialize(obj, cells);
+        return floor;
+    }
 
-    Floorplan() {
+    private Floorplan(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
     }
 
     public double getNorthAngleOffset() {

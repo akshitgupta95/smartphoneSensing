@@ -6,10 +6,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+
+import org.json.JSONException;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -73,7 +76,12 @@ public class FloorplanFragment extends Fragment {
             String[] names = meta.stream().map(e -> e.name == null ? "no name" : e.name).toArray(String[]::new);
             Util.showDropdownSpinner(getContext(), "Open floorplan", names, index -> {
                 FloorplanDataDAO.FloorplanMeta choice = meta.get(index);
-                floorview.setFloorplan(db.floorplanDataDAO().getById(choice.id).getFloorplan(db), choice.name);
+                try {
+                    Floorplan floor = Floorplan.load(db, db.floorplanDataDAO().getById(choice.id));
+                    floorview.setFloorplan(floor);
+                } catch (JSONException e) {
+                    Toast.makeText(getContext(), "Failed to load floorplan", Toast.LENGTH_SHORT).show();
+                }
             });
         });
     }

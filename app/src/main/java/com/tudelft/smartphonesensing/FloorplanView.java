@@ -7,17 +7,13 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PointF;
 import android.graphics.RectF;
-import android.os.Bundle;
 import android.os.Handler;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.Toast;
-
-import androidx.fragment.app.Fragment;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,7 +27,6 @@ public class FloorplanView extends View {
     SelectionMode selectionMode = SelectionMode.VIEWING;
     MotionTracker tracker;
     Floorplan floorplan;
-    String floorplanName;
     ParticleModel particleModel;
     boolean simulating = false;
     float viewportWidthMeters = 5;
@@ -59,6 +54,7 @@ public class FloorplanView extends View {
         this.selectionMode = selectionMode;
         if (selectionMode != SelectionMode.EDITING) {
             selectedElement = null;
+            save();
         }
         if (selectionMode != SelectionMode.PARTICLES) {
             simulating = false;
@@ -72,10 +68,6 @@ public class FloorplanView extends View {
 
     public Floorplan getFloorplan() {
         return this.floorplan;
-    }
-
-    public String getFloorplanName() {
-        return this.floorplanName;
     }
 
     public ParticleModel getParticleModel() {
@@ -95,16 +87,14 @@ public class FloorplanView extends View {
         invalidate();
     }
 
-    public void saveAs(String name) {
-        if (!name.equals(floorplanName)) {
-            setFloorplan(floorplan, name);
-        }
+    public void save() {
         AppDatabase db = AppDatabase.getInstance(getContext());
-        FloorplanDataDAO.FloorplanData floordata = new FloorplanDataDAO.FloorplanData();
-        floordata.setFloorplan(floorplan, floorplanName);
-        //TODO do something with id here, currently saving a seperate version every time
-        //use name as primary key?
-        db.floorplanDataDAO().InsertAll(floordata);
+        try {
+            FloorplanDataDAO.FloorplanData floordata = FloorplanDataDAO.FloorplanData.fromFloorplan(floorplan);
+            db.floorplanDataDAO().update(floordata);
+        } catch (JSONException e) {
+            Toast.makeText(getContext(), "Failed to save floorplan", Toast.LENGTH_SHORT).show();
+        }
     }
 
     public List<Floorplan.ElementAction> getActions() {
@@ -116,13 +106,7 @@ public class FloorplanView extends View {
             }));
         }
         if (this.selectionMode == SelectionMode.EDITING) {
-            actions.add(Floorplan.ElementAction.shortHand(() -> "Save", () -> {
-                Util.showTextDialog(getContext(), "Save floorplan as", floorplanName, (name) -> {
-                    if (name != null) {
-                        saveAs(name);
-                    }
-                });
-            }));
+            actions.add(Floorplan.ElementAction.shortHand(() -> "Save", this::save));
             actions.add(Floorplan.ElementAction.shortHand(() -> "Add rect", this::addRectangleObstacle));
             actions.add(Floorplan.ElementAction.shortHand(() -> "Align", this::setNorth));
 
@@ -145,6 +129,7 @@ public class FloorplanView extends View {
                             cell.setName("New cell");
                             int cellid = (int) AppDatabase.getInstance(getContext()).locationCellDAO().insert(cell);
                             cell.setId(cellid);
+                            cell.setFloorplanId(floorplan.getId());
                             cellelement.setCell(cell);
                         }
 
@@ -159,9 +144,8 @@ public class FloorplanView extends View {
         return actions;
     }
 
-    public void setFloorplan(Floorplan floorplan, String name) {
+    public void setFloorplan(Floorplan floorplan) {
         this.floorplan = floorplan;
-        this.floorplanName = name;
         selectedElement = null;
         buttonsChanged();
     }
@@ -215,12 +199,22 @@ public class FloorplanView extends View {
             }
         });
 
-        floorplan = new Floorplan();
+        AppDatabase db = AppDatabase.getInstance(getContext());
+
+        //get the last saved floor data or generate a default one
+        FloorplanDataDAO.FloorplanData floordata = db.floorplanDataDAO().getLastSaved();
+        if (floordata == null) {
+            floordata = new FloorplanDataDAO.FloorplanData();
+            floordata.setName("Default");
+            floordata.setLayoutJson(getContext().getString(R.string.default_floorplan_json));
+            int id = (int) db.floorplanDataDAO().insert(floordata);
+            floordata.setId(id);
+        }
 
         try {
-            floorplan.deserialize(new JSONObject(getContext().getString(R.string.default_floorplan_json)), new ArrayList<>());
-        } catch (JSONException err) {
-            Toast.makeText(getContext(), "Failed to initialize default floorplan", Toast.LENGTH_SHORT).show();
+            setFloorplan(Floorplan.load(db, floordata));
+        } catch (JSONException e) {
+            Toast.makeText(getContext(), "Failed to load floorplan", Toast.LENGTH_SHORT).show();
         }
 
         setOnTouchListener(new OnTouchListener() {
