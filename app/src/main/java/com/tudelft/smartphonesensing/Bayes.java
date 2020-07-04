@@ -40,6 +40,17 @@ public class Bayes {
             return (sampler == null ? 0 : sampler.sample(rssi));
         }
 
+        double calculateProb(long mac, double rssi){
+            double prob=0;
+            for(double j=rssi-0.5;j<rssi+0.5;j=j+0.05){
+                GaussianSampler sampler = table.get(mac);
+                double value= (sampler == null ? 0 : sampler.sample(j));
+                prob+=j*value;
+
+            }
+            return prob;
+        }
+
         void addMacData(long mac, List<Scan> scandata) {
             table.put(mac, new GaussianSampler(scandata));
         }
@@ -78,7 +89,7 @@ public class Bayes {
                 return 0;
             }
             //TODO find better solution to deal with stddev==0 and remove magic constant
-            double roundedStd = stddev;
+            double roundedStd = Math.max(0.1,stddev);
             return (1 / (roundedStd * Math.sqrt(2 * Math.PI))) * Math.exp(-(rssi - mean) * (rssi - mean) / (2 * roundedStd * roundedStd));
         }
 
@@ -190,11 +201,11 @@ public class Bayes {
             //p(rssj)=p(cell1)*p(rssj/cell1)+p(cell2)*p(rssj/cell2).....
             double rssj=0;
             for(cellCandidate cand:candidateList){
-                rssj+= cand.macTable.sampleProb(curMAC, curLevel)*cand.probability;
+                rssj+= cand.macTable.calculateProb(curMAC, curLevel)*cand.probability;
             }
             if(rssj!=0) {
                 for (cellCandidate cand : candidateList) {
-                    double sampledP = cand.macTable.sampleProb(curMAC, curLevel);
+                    double sampledP = cand.macTable.calculateProb(curMAC, curLevel);
                     cand.probability *= sampledP;
                     cand.probability /= rssj;
 
@@ -227,4 +238,5 @@ public class Bayes {
     public List<LocationMacTable> getLocationMacTables() {
         return locationMacTables;
     }
+
 }
