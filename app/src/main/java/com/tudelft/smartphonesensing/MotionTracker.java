@@ -209,7 +209,7 @@ public class MotionTracker implements SensorEventListener {
             lastStepTime = accel.time;
         }
         if (lowp2p < highp2p) {
-            Log.v("ACCEL", String.format(Locale.US, "%.2f, %.2f", lowp2p, highp2p));
+            //Log.v("ACCEL", String.format(Locale.US, "%.2f, %.2f", lowp2p, highp2p));
         }
     }
 
@@ -243,7 +243,7 @@ public class MotionTracker implements SensorEventListener {
             maxp2p = Math.max(maxp2p, p2p);
         }
 
-        Log.v("ACCEL", String.format(Locale.US, "%.2f, %.2f", minp2p, maxp2p));
+        //Log.v("ACCEL", String.format(Locale.US, "%.2f, %.2f", minp2p, maxp2p));
         final double multiplier = 2.0;
         final double mincap = 1.5;
         final double maxcap = 4.0;
@@ -300,7 +300,7 @@ public class MotionTracker implements SensorEventListener {
         }
 
         /*
-        Log.v("ACC", String.format("%5.1f,%5.1f,%5.1f", measurement.accelWorld.x, measurement.accelWorld.y, measurement.accelWorld.z));
+        //Log.v("ACC", String.format("%5.1f,%5.1f,%5.1f", measurement.accelWorld.x, measurement.accelWorld.y, measurement.accelWorld.z));
         if (lastMeasurement == null) {
             avgMagnitude = measurement.accelWorld;
         } else {
