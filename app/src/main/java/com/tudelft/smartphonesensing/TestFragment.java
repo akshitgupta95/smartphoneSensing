@@ -20,6 +20,7 @@ import com.google.android.material.snackbar.Snackbar;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -27,7 +28,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
 
     private WifiManager wifiManager;
     private List<ScanResult> results;
-    private Bayes bayes = null;
+    private Bayes bayes;
     private TextView normaliseTV;
     private ProgressBar progressBar;
     private float normalisationGain = 0;
@@ -39,6 +40,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        bayes = new Bayes(getContext());
         FloatingActionButton pred = (FloatingActionButton) getView().findViewById(R.id.pred);
         pred.setOnClickListener(this);
         FloatingActionButton normalise = (FloatingActionButton) getView().findViewById(R.id.normalise);
@@ -48,16 +50,6 @@ public class TestFragment extends Fragment implements View.OnClickListener {
 
         AppDatabase db = AppDatabase.getInstance(getContext());
         List<FloorplanDataDAO.FloorplanMeta> floors = db.floorplanDataDAO().getAllNames();
-
-        if (floors.size() == 0) {
-            Toast.makeText(getContext(), "No locations yet", Toast.LENGTH_SHORT).show();
-        } else {
-            //TODO temp code, should no longer be needed
-            String[] names = floors.stream().map(f -> f.name).toArray(String[]::new);
-            Util.showDropdownSpinner(getContext(), "Select floor plan", names, index -> {
-                bayes = new Bayes(getActivity(), floors.get(index).id);
-            });
-        }
     }
 
     public void onClick(View v) {
@@ -241,11 +233,12 @@ public class TestFragment extends Fragment implements View.OnClickListener {
             // display the location
             Toast.makeText(this.getContext(), "Probability :" + best.probability, Toast.LENGTH_SHORT).show();
             TextView locationText = (TextView) getView().findViewById(R.id.text_loc);
-            locationText.setText(best.macTable.location);
+
+            locationText.setText(best.macTable.location.getName());
 
             String debugtext = "";
             for (Bayes.cellCandidate cand : candidates) {
-                debugtext += String.format("%.4f %s\n", cand.probability, cand.macTable.location);
+                debugtext += String.format(Locale.US, "%.4f %s\n", cand.probability, cand.macTable.location.getName());
             }
             TextView debugview = getView().findViewById(R.id.locateDebugOutput);
             debugview.setText(debugtext);

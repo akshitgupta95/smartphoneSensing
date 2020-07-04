@@ -1,10 +1,9 @@
 package com.tudelft.smartphonesensing;
 
 import android.os.Bundle;
-import android.view.MenuItem;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -12,16 +11,16 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-import java.util.ArrayList;
+import org.json.JSONException;
+
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 import java.util.Stack;
 
 public class MainActivity extends AppCompatActivity {
+    //TODO do this by passing arguments instead
+    static ModelState modelState = new ModelState();
 
     BottomNavigationView navView;
     final ManageFragment manageFragment = new ManageFragment();
@@ -69,6 +68,18 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        modelState.setContext(this);
+
+        AppDatabase db = AppDatabase.getInstance(this);
+        //get the last saved floor data or generate a default one
+        FloorplanDataDAO.FloorplanData floordata = db.floorplanDataDAO().getLastSaved();
+        if (floordata != null) {
+            modelState.loadFloor(floordata.getId());
+        }else{
+            modelState.loadNewDefaultFloor("Default");
+        }
+
 
         menumap.put(R.id.navigation_manage, manageFragment);
         menumap.put(R.id.navigation_floorplan, floorplanFragment);
