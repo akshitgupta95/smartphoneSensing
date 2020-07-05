@@ -1,21 +1,16 @@
 package com.tudelft.smartphonesensing;
 
 import android.content.Context;
-import android.graphics.Matrix;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.SystemClock;
-import android.renderscript.Matrix4f;
-import android.util.FloatMath;
 import android.util.Log;
-import android.widget.Toast;
 
 import org.jetbrains.annotations.NotNull;
-import org.jtransforms.dct.DoubleDCT_1D;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.jtransforms.fft.DoubleFFT_1D;
-import org.locationtech.jts.math.Vector3D;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -23,14 +18,16 @@ import okhttp3.Response;
 import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 import static android.content.Context.SENSOR_SERVICE;
 
@@ -43,6 +40,8 @@ public class MotionTracker implements SensorEventListener {
     Sensor rotationSensor;
     Sensor rawAccelerometer;
     Sensor stepCounter;
+
+    FileOutputStream debugDumpfile = null;
 
     public MotionTracker(Context ctx, BiConsumer<Double, Double> onmove) {
         this.onmove = onmove;
@@ -106,7 +105,7 @@ public class MotionTracker implements SensorEventListener {
             state[4] = event.values[0];
             state[5] = event.values[1];
             state[6] = event.values[2];
-            newMeasurement(event);
+            processAccelMeasurement(new AccelMeasurement(event.values, event.timestamp, lastRotation));
         }
         if (event.sensor == rotationSensor) {
             lastRotation = Quaternion.fromIncompleteUnit(event.values[0], event.values[1], event.values[2]);
@@ -143,7 +142,7 @@ public class MotionTracker implements SensorEventListener {
     private double sampleInterval = 0.02;
 
 
-    private void detectStepFourier() {
+    private double detectStepFourier() {
         double[] fftdata = new double[windowSize * 2];
         int i = 0;
         for (AccelMeasurement mdata : history) {
@@ -168,7 +167,9 @@ public class MotionTracker implements SensorEventListener {
             AccelMeasurement middlemeasure = history.get(history.size() - windowSize / 2);
             double dist = walkvelocity / 50;
             triggerStep(dist, middlemeasure);
+            return dist;
         }
+        return 0;
     }
 
     private void triggerStep(double dist, AccelMeasurement dirmeasure) {
@@ -177,7 +178,7 @@ public class MotionTracker implements SensorEventListener {
         onmove.accept(dir.x / hormag * dist, dir.y / hormag * dist);
     }
 
-    private double peaktopeak(List<AccelMeasurement> hist, int start, int end) {
+    private double peakToPeak(List<AccelMeasurement> hist, int start, int end) {
         double submin = Double.POSITIVE_INFINITY;
         double submax = Double.NEGATIVE_INFINITY;
         for (int i = start; i < end; i++) {
@@ -188,7 +189,7 @@ public class MotionTracker implements SensorEventListener {
         return submax - submin;
     }
 
-    private void detectStepHandcraft2() {
+    private double detectStepHandcraft2() {
         final double highwindow = 0.12;
         final double lowwindow = 0.12;
         int highsamples = (int) Math.round(highwindow / sampleInterval);
@@ -196,9 +197,9 @@ public class MotionTracker implements SensorEventListener {
 
         int index = history.size();
 
-        double highp2p = peaktopeak(history, index - highsamples, index);
+        double highp2p = peakToPeak(history, index - highsamples, index);
         index -= highsamples;
-        double lowp2p = peaktopeak(history, index - lowsamples, index);
+        double lowp2p = peakToPeak(history, index - lowsamples, index);
 
         final double multiplier = 2.0;
         final double mincap = Double.POSITIVE_INFINITY;//not used
@@ -207,13 +208,12 @@ public class MotionTracker implements SensorEventListener {
         if (highp2p > multiplier * lowp2p && lowp2p < mincap && highp2p > maxcap && lastStepTime + stepCooldown < accel.time) {
             triggerStep(stepSizeMeters, accel);
             lastStepTime = accel.time;
+            return stepSizeMeters;
         }
-        if (lowp2p < highp2p) {
-            //Log.v("ACCEL", String.format(Locale.US, "%.2f, %.2f", lowp2p, highp2p));
-        }
+        return 0;
     }
 
-    private void detectStepHandcraft() {
+    private double detectStepHandcraft() {
         final double windowtime = 0.4;
         final double subwindowtime = 0.15;
 
@@ -251,11 +251,13 @@ public class MotionTracker implements SensorEventListener {
         if (maxp2p > multiplier * minp2p && minp2p < mincap && maxp2p > maxcap && lastStepTime + stepCooldown < accel.time) {
             triggerStep(stepSizeMeters, accel);
             lastStepTime = accel.time;
+            return stepSizeMeters;
         }
+        return 0;
     }
 
-    private void detectStepAvg() {
-        final double avgwindowsec = 1.2;
+    private double detectStepAvg() {
+        final double avgwindowsec = 0.8;
         final double smoothwindowsec = 0.3;
         final double stepTreshold = 1.0;
 
@@ -264,10 +266,11 @@ public class MotionTracker implements SensorEventListener {
         double runningsum = 0;
 
         double[] avg = new double[history.size()];
-
+        double totalsum = 0;
         for (int i = 0; i < history.size(); i++) {
             AccelMeasurement front = history.get(i);
             runningsum += front.accelWorld.z;
+            totalsum += front.accelWorld.z;
 
             if (i - windowsize > 0) {
                 AccelMeasurement back = history.get(i - windowsize);
@@ -276,59 +279,113 @@ public class MotionTracker implements SensorEventListener {
             avg[i] = runningsum / windowsize;
         }
 
+        double totalavg = totalsum / history.size();
+
         double backdiff = avg[avg.length - 2] - avg[avg.length - 3];
         double frontdiff = avg[avg.length - 1] - avg[avg.length - 2];
         AccelMeasurement last = history.get(history.size() - 1);
-        if (backdiff > 0 && frontdiff < 0 && avg[avg.length - 1] > stepTreshold && lastStepTime + stepCooldown < last.time) {
+        if (backdiff > 0 && frontdiff < 0 && avg[avg.length - 1] - totalavg > stepTreshold && lastStepTime + stepCooldown < last.time) {
             lastStepTime = last.time;
             triggerStep(stepSizeMeters, last);
+            return stepSizeMeters;
+        }
+        return 0;
+    }
+
+    private double detectStepOld(AccelMeasurement measurement) {
+        double mag = measurement.accelPhone.getMagnitude();
+        double timestep = measurement.time - lastMeasurement.time;
+        double p = Math.exp(-timestep / characteristicWindowtime);
+        avgMagnitude = avgMagnitude.multiply(p).add(measurement.accelWorld.multiply(1 - p));
+
+        Vec3 diff = measurement.accelWorld.add(avgMagnitude.multiply(-1));
+
+        state[0] = measurement.time;
+        state[1] = diff.x;
+        state[2] = diff.y;
+        state[3] = diff.z;
+        sendState();
+        if (diff.z > 2.3 && measurement.time > lastStepTime + stepCooldown) {
+            lastStepTime = measurement.time;
+            //Vec3 dir = avgMagnitude;
+            triggerStep(stepSizeMeters, measurement);
+            return stepSizeMeters;
+        }
+        return 0;
+    }
+
+    private void toggleDebugFileOutput(boolean enable) {
+        try {
+            if (debugDumpfile != null) {
+                debugDumpfile.close();
+                debugDumpfile = null;
+            }
+            if (enable) {
+                MainActivity.context.deleteFile("acceldebug.json");
+                debugDumpfile = MainActivity.context.openFileOutput("acceldebug.json", Context.MODE_APPEND | Context.MODE_PRIVATE);
+            }
+        } catch (IOException e) {
+            //
         }
     }
 
-    private void newMeasurement(SensorEvent event) {
-        AccelMeasurement measurement = new AccelMeasurement(event.values, event.timestamp, lastRotation);
+    private static boolean runtest = false;
+
+    private void testFromFile() {
+        toggleDebugFileOutput(false);
+        runtest = false;
+        lastStepTime = 0;
+        history.clear();
+        String movedist = "";
+        String data = "";
+        try {
+            FileInputStream stream = MainActivity.context.openFileInput("acceldebug.json");
+            BufferedReader scanner = new BufferedReader(new InputStreamReader(stream));
+            while (true) {
+                String line = scanner.readLine();
+                if (line == null) {
+                    break;
+                }
+                AccelMeasurement m = new AccelMeasurement(new JSONObject(line));
+                double dist = processAccelMeasurement(m);
+                movedist += String.format(Locale.US, "%f\n", dist);
+                data += String.format(Locale.US, "%.4f,%.4f\n", m.time, m.accelWorld.z);
+            }
+            stream.close();
+        } catch (JSONException | IOException e) {
+            //
+        }
+        int a = 0;
+    }
+
+    private double processAccelMeasurement(AccelMeasurement measurement) {
+        //TODO remove
+        if (runtest) {
+            testFromFile();
+        }
+        if (debugDumpfile != null) {
+            try {
+                debugDumpfile.write(measurement.toJson().toString().getBytes());
+                debugDumpfile.write("\n".getBytes());
+            } catch (JSONException | IOException e) {
+                Log.v("accel", "json error while logging accel");
+            }
+        }
+
         history.add(measurement);
         while (history.size() > windowSize) {
             history.remove(0);
         }
 
         if (history.size() == windowSize) {
-            //detectStepFourier();
-            //detectStepAvg();
-            //detectStepHandcraft();
-            detectStepHandcraft2();
+            double movedist = 0;
+            //movedist = detectStepFourier();
+            movedist = detectStepAvg();
+            //movedist = detectStepHandcraft();
+            //movedist = detectStepHandcraft2();
+            return movedist;
         }
-
-        /*
-        //Log.v("ACC", String.format("%5.1f,%5.1f,%5.1f", measurement.accelWorld.x, measurement.accelWorld.y, measurement.accelWorld.z));
-        if (lastMeasurement == null) {
-            avgMagnitude = measurement.accelWorld;
-        } else {
-            double mag = measurement.accelPhone.getMagnitude();
-            double timestep = measurement.time - lastMeasurement.time;
-            double p = Math.exp(-timestep / characteristicWindowtime);
-            avgMagnitude = avgMagnitude.multiply(p).add(measurement.accelWorld.multiply(1 - p));
-
-            DoubleFFT_1D fft = new DoubleFFT_1D(70);
-            fft.complexForward();
-
-            Vec3 diff = measurement.accelWorld.add(avgMagnitude.multiply(-1));
-
-            state[0] = measurement.time;
-            state[1] = diff.x;
-            state[2] = diff.y;
-            state[3] = diff.z;
-            sendState();
-            if (diff.z > 2.3 && measurement.time > lastStepTime + stepCooldown) {
-                lastStepTime = measurement.time;
-                //Vec3 dir = avgMagnitude;
-                Vec3 dir = measurement.orientation.conjugate().permute(new Vec3(0, 1, 0));
-                double hormag = Math.sqrt(dir.x * dir.x + dir.y * dir.y);
-                onmove.accept(dir.x / hormag * stepSizeMeters, dir.y / hormag * stepSizeMeters);
-            }
-        }
-        lastMeasurement = measurement;
-        */
+        return 0;
     }
 
     static class AccelMeasurement {
@@ -336,6 +393,13 @@ public class MotionTracker implements SensorEventListener {
         final Vec3 accelWorld;
         final Quaternion orientation;
         final double time;//seconds since phone startup
+
+        private AccelMeasurement(JSONObject obj) throws JSONException {
+            accelPhone = new Vec3(0, 0, 0);
+            accelWorld = new Vec3(0, 0, obj.getDouble("accz"));
+            orientation = new Quaternion(1, 0, 0, 0);
+            time = obj.getDouble("time");
+        }
 
         AccelMeasurement(float[] raw, long time, Quaternion orientation) {
             accelPhone = new Vec3(raw[0], raw[1], raw[2]);
@@ -345,6 +409,12 @@ public class MotionTracker implements SensorEventListener {
             this.time = time / 1e9d;
         }
 
+        JSONObject toJson() throws JSONException {
+            JSONObject obj = new JSONObject();
+            obj.put("accz", accelWorld.z);
+            obj.put("time", time);
+            return obj;
+        }
     }
 
     @Override
