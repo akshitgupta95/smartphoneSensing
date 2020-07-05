@@ -340,8 +340,14 @@ public class FloorplanView extends View {
         palette.text.setTextAlign(Paint.Align.CENTER);
         palette.text.setStyle(Paint.Style.FILL);
 
+        palette.particle = new Paint();
+        palette.particle.setStyle(Paint.Style.STROKE);
+        palette.particle.setStrokeWidth(0.02f);
+        palette.particle.setARGB(255, 255, 0, 0);
+
         renderOpts.palette = palette;
         renderOpts.transform = floorTransform;
+        renderOpts.drawboxes = false;
     }
 
     @Override
@@ -361,7 +367,7 @@ public class FloorplanView extends View {
             canvas.drawPath(selectedElement.getContour(), renderOpts.palette.lines);
         }
         if (selectionMode == SelectionMode.PARTICLES && model.getParticleModel() != null) {
-            model.getParticleModel().render(canvas);
+            model.getParticleModel().render(canvas, renderOpts);
         }
 
         //restore old transforms

@@ -284,6 +284,7 @@ public class Floorplan {
         public FloorElement selected;
         public Matrix transform;
         public PaintPalette palette;
+        public boolean drawboxes;
     }
 
     void render(Canvas canvas, RenderOpts opts) {
@@ -569,6 +570,7 @@ public class Floorplan {
         public Paint floor;
         public Paint lines;
         public Paint text;
+        public Paint particle;
     }
 
 

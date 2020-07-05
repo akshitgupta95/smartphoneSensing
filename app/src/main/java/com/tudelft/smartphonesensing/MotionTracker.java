@@ -190,7 +190,7 @@ public class MotionTracker implements SensorEventListener {
 
     private void detectStepHandcraft2() {
         final double highwindow = 0.12;
-        final double lowwindow = 0.18;
+        final double lowwindow = 0.12;
         int highsamples = (int) Math.round(highwindow / sampleInterval);
         int lowsamples = (int) Math.round(lowwindow / sampleInterval);
 
@@ -201,8 +201,8 @@ public class MotionTracker implements SensorEventListener {
         double lowp2p = peaktopeak(history, index - lowsamples, index);
 
         final double multiplier = 2.0;
-        final double mincap = 10.5;
-        final double maxcap = 3.2;
+        final double mincap = Double.POSITIVE_INFINITY;//not used
+        final double maxcap = 3.5;
         AccelMeasurement accel = history.get(history.size() - 1);
         if (highp2p > multiplier * lowp2p && lowp2p < mincap && highp2p > maxcap && lastStepTime + stepCooldown < accel.time) {
             triggerStep(stepSizeMeters, accel);

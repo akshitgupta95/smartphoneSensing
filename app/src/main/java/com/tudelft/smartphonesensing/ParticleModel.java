@@ -16,6 +16,7 @@ import org.locationtech.jts.geom.Coordinate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.stream.Collectors;
 
@@ -97,7 +98,7 @@ public class ParticleModel {
         }
     }
 
-    static double crossProduct(double x0, double y0, double x1, double y1, double x2, double y2) {
+    private static double crossProduct(double x0, double y0, double x1, double y1, double x2, double y2) {
         return (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0);
     }
 
@@ -150,10 +151,11 @@ public class ParticleModel {
         }
     }
 
-    private final double biasAngleRange = Math.PI / 4;
-    private final double biasScaleRange = 0.5;
+    private final double biasAngleRange = Math.PI / 4;//try -22.5-+22.5 deg reported angle
+    private final double biasScaleRange = 0.5;//try 0.75-1.25x reported speeds
     private final Random rand = new Random();
     private double totalarea;
+    private DistributionInfo2d particleDistribution;
     private List<ConvexBox> boxes;
     private List<Particle> particles = new ArrayList<>();
     private double northAngleOffset = 0;
@@ -199,6 +201,35 @@ public class ParticleModel {
         return createParticle(targetbox, pos[0], pos[1], 0, 1);
     }
 
+    public static class DistributionInfo2d {
+        public double meanx;
+        public double meany;
+        public double std;
+        public double maxdist;
+    }
+
+    private void recalcDistrubution() {
+        double sumx = 0, sumy = 0;
+        for (Particle p : particles) {
+            sumx += p.pos.x;
+            sumy += p.pos.y;
+        }
+        DistributionInfo2d ret = new DistributionInfo2d();
+        ret.meanx = sumx / particles.size();
+        ret.meany = sumy / particles.size();
+
+        double varsum = 0;
+        double maxdistsqr = Double.NEGATIVE_INFINITY;
+        for (Particle p : particles) {
+            double distsqr = Math.pow(p.pos.x - ret.meanx, 2) + Math.pow(p.pos.y - ret.meany, 2);
+            varsum += distsqr;
+            maxdistsqr = Math.max(maxdistsqr, distsqr);
+        }
+        ret.std = Math.sqrt(varsum / particles.size());
+        ret.maxdist = Math.sqrt(maxdistsqr);
+        particleDistribution = ret;
+    }
+
     public void move(double dxraw, double dyraw) {
         final double randscale = 0.5;
 
@@ -229,35 +260,37 @@ public class ParticleModel {
             }
         }
 
-        //particles = particles.stream().filter(p -> p.move(dx, dy)).collect(Collectors.toList());
+        recalcDistrubution();
+        //Log.v("INFO", String.format(Locale.US, "max: %.2f, std: %.2f", particleDistribution.maxdist, particleDistribution.std));
     }
 
-    void render(Canvas canvas) {
+    void render(Canvas canvas, Floorplan.RenderOpts opts) {
         if (boxes == null) {
             return;
         }
-        Paint paint = new Paint();
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(0.02f);
-        paint.setARGB(255, 255, 0, 0);
-        /*
-        for (ParticleModel.ConvexBox box : boxes) {
-            Path p = new Path();
-            p.moveTo((float) box.points[0].x, (float) box.points[0].y);
-            for (int i = 1; i < box.points.length; i++) {
-                p.lineTo((float) box.points[i].x, (float) box.points[i].y);
+
+        if (opts.drawboxes) {
+            for (ParticleModel.ConvexBox box : boxes) {
+                Path p = new Path();
+                p.moveTo((float) box.points[0].x, (float) box.points[0].y);
+                for (int i = 1; i < box.points.length; i++) {
+                    p.lineTo((float) box.points[i].x, (float) box.points[i].y);
+                }
+                p.close();
+                canvas.drawPath(p, opts.palette.particle);
             }
-            p.close();
-            canvas.drawPath(p, paint);
         }
-        */
 
         //draw only a portion of the particles if there are many
         final int MAXVISIBLEPARTICLES = 30000;
         int step = (particles.size() + MAXVISIBLEPARTICLES) / MAXVISIBLEPARTICLES;
         for (int i = 0; i < particles.size(); i += step) {
             Particle particle = particles.get(i);
-            canvas.drawPoint((float) particle.pos.x, (float) particle.pos.y, paint);
+            canvas.drawPoint((float) particle.pos.x, (float) particle.pos.y, opts.palette.particle);
+        }
+
+        if (particleDistribution != null) {
+            canvas.drawCircle((float) particleDistribution.meanx, (float) particleDistribution.meany, (float) particleDistribution.std, opts.palette.particle);
         }
     }
 }
