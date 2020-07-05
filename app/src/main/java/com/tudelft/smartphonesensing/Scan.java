@@ -26,13 +26,13 @@ public class Scan {
     private int freq;
 
     @ColumnInfo(name = "loc")
-    private String loc;
+    private int loc;
 
     @ColumnInfo(name = "time")
     private long time;
 
 
-    public Scan(long MAC, String SSID, int RSSi, double level, int freq, String loc, long time) {
+    public Scan(long MAC, String SSID, int RSSi, double level, int freq, int loc, long time) {
         this.MAC = MAC;
         this.SSID = SSID;
         this.RSSi = RSSi;
@@ -102,11 +102,11 @@ public class Scan {
         this.freq = freq;
     }
 
-    public String getLoc() {
+    public int getLoc() {
         return loc;
     }
 
-    public void setLoc(String loc) {
+    public void setLoc(int loc) {
         this.loc = loc;
     }
 

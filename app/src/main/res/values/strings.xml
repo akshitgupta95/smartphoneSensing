@@ -10,14 +10,16 @@
       "top": 0,
       "right": 1,
       "bottom": 1,
-      "type": "rectangle"
+      "type": "rectangle",
+      "cellid":-1
     },
     {
       "left": 0.5,
       "top": 0.5,
       "right": 1.5,
       "bottom": 1.5,
-      "type": "rectangle"
+      "type": "rectangle",
+      "cellid":-1
     }
       ],
   "type": "floorplan"

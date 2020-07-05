@@ -1,8 +1,14 @@
 package com.tudelft.smartphonesensing;
 
+import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.SystemClock;
 import android.util.Log;
 
 import org.locationtech.jts.geom.Coordinate;
@@ -10,8 +16,11 @@ import org.locationtech.jts.geom.Coordinate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.stream.Collectors;
+
+import static android.content.Context.SENSOR_SERVICE;
 
 public class ParticleModel {
     public static class ConvexBox {
@@ -73,7 +82,7 @@ public class ParticleModel {
             return bestindex == -1 ? this : neighbours[bestindex];
         }
 
-        Particle randomParticle(Random rand) {
+        double[] randomPosition(Random rand) {
             //coordinate along first edge a and second edge b
             double a = rand.nextDouble();
             double b = rand.nextDouble();
@@ -85,43 +94,71 @@ public class ParticleModel {
             }
             double x = points[0].x + (points[1].x - points[0].x) * a + (points[2].x - points[0].x) * b;
             double y = points[0].y + (points[1].y - points[0].y) * a + (points[2].y - points[0].y) * b;
-            return new Particle(this, x, y);
+            return new double[]{x, y};
         }
     }
 
-    static double crossProduct(double x0, double y0, double x1, double y1, double x2, double y2) {
+    private static double crossProduct(double x0, double y0, double x1, double y1, double x2, double y2) {
         return (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0);
     }
 
     static class Particle {
         Coordinate pos;
         ConvexBox box;
+        private double[] biasmatrix;
+        private double biasAngle;
+        private double biasScale;
 
         Particle(ConvexBox box, double x, double y) {
             this.box = box;
             this.pos = new Coordinate(x, y);
+            this.setBias(1, 0);
+        }
+
+        void setBias(double angle, double scale) {
+            biasmatrix = new double[]{
+                    scale * Math.cos(angle), scale * Math.sin(angle),
+                    -scale * Math.sin(angle), scale * Math.cos(angle)
+            };
+            biasAngle = angle;
+            biasScale = scale;
+        }
+
+        double getBiasAngle() {
+            return biasAngle;
+        }
+
+        double getBiasScale() {
+            return biasScale;
         }
 
         boolean move(double dx, double dy) {
             ConvexBox prev = box;
             ConvexBox newbox = box;
+            double mdx = dx * biasmatrix[0] + dy * biasmatrix[1];
+            double mdy = dx * biasmatrix[2] + dy * biasmatrix[3];
             do {
                 prev = newbox;
-                newbox = prev.moveInside(pos.x, pos.y, pos.x + dx, pos.y + dy);
+                newbox = prev.moveInside(pos.x, pos.y, pos.x + mdx, pos.y + mdy);
                 if (newbox == null) {
                     return false;
                 }
             } while (prev != newbox);
-            pos.x += dx;
-            pos.y += dy;
+            pos.x += mdx;
+            pos.y += mdy;
             box = newbox;
             return true;
         }
     }
 
+    private final double biasAngleRange = Math.PI / 4;//try -22.5-+22.5 deg reported angle
+    private final double biasScaleRange = 0.5;//try 0.75-1.25x reported speeds
+    private final Random rand = new Random();
     private double totalarea;
+    private DistributionInfo2d particleDistribution;
     private List<ConvexBox> boxes;
     private List<Particle> particles = new ArrayList<>();
+    private double northAngleOffset = 0;
 
     void setBoxes(List<ConvexBox> boxes) {
         this.boxes = boxes;
@@ -132,14 +169,25 @@ public class ParticleModel {
         //spawnParticles(n);
     }
 
+    void setNorthAngleOffset(double angle) {
+        northAngleOffset = angle;
+    }
+
+    Particle createParticle(ConvexBox box, double x, double y, double biasangle, double biasscale) {
+        Particle p = new Particle(box, x, y);
+        double angle = biasAngleRange * (0.5 - rand.nextDouble());
+        double scale = 1 + biasScaleRange * (0.5 - rand.nextDouble());
+        p.setBias(biasangle / 2 + angle / 2, biasscale / 2 + scale / 2);
+        return p;
+    }
+
     public void spawnParticles(int n) {
-        Random rand = new Random();
         for (int i = 0; i < n; i++) {
-            particles.add(randomParticle(rand));
+            particles.add(randomParticle());
         }
     }
 
-    private Particle randomParticle(Random rand) {
+    private Particle randomParticle() {
         double p = rand.nextDouble() * totalarea;
         ConvexBox targetbox = boxes.get(0);
         for (ConvexBox box : boxes) {
@@ -149,30 +197,88 @@ public class ParticleModel {
                 break;
             }
         }
-        return targetbox.randomParticle(rand);
+        double[] pos = targetbox.randomPosition(rand);
+        return createParticle(targetbox, pos[0], pos[1], 0, 1);
     }
 
-    public void move(double dx, double dy) {
-        //TODO implement resampling
-        particles = particles.stream().filter(p -> p.move(dx, dy)).collect(Collectors.toList());
+    public static class DistributionInfo2d {
+        public double meanx;
+        public double meany;
+        public double std;
+        public double maxdist;
     }
 
-    void render(Canvas canvas) {
+    private void recalcDistrubution() {
+        double sumx = 0, sumy = 0;
+        for (Particle p : particles) {
+            sumx += p.pos.x;
+            sumy += p.pos.y;
+        }
+        DistributionInfo2d ret = new DistributionInfo2d();
+        ret.meanx = sumx / particles.size();
+        ret.meany = sumy / particles.size();
+
+        double varsum = 0;
+        double maxdistsqr = Double.NEGATIVE_INFINITY;
+        for (Particle p : particles) {
+            double distsqr = Math.pow(p.pos.x - ret.meanx, 2) + Math.pow(p.pos.y - ret.meany, 2);
+            varsum += distsqr;
+            maxdistsqr = Math.max(maxdistsqr, distsqr);
+        }
+        ret.std = Math.sqrt(varsum / particles.size());
+        ret.maxdist = Math.sqrt(maxdistsqr);
+        particleDistribution = ret;
+    }
+
+    public void move(double dxraw, double dyraw) {
+        final double randscale = 0.5;
+
+        double dx = dxraw * Math.cos(northAngleOffset) + dyraw * Math.sin(northAngleOffset);
+        double dy = -dxraw * Math.sin(northAngleOffset) + dyraw * Math.cos(northAngleOffset);
+
+        List<Integer> validindexes = new ArrayList<>(particles.size());
+        List<Integer> invalidindexes = new ArrayList<>();
+
+        for (int i = 0; i < particles.size(); i++) {
+            double xrand = 1 + randscale * (-0.5 + rand.nextDouble());
+            double yrand = 1 + randscale * (-0.5 + rand.nextDouble());
+
+            if (!particles.get(i).move(dx * xrand, dy * yrand)) {
+                invalidindexes.add(i);
+            } else {
+                validindexes.add(i);
+            }
+        }
+
+        for (int i = 0; i < invalidindexes.size(); i++) {
+            if (validindexes.size() != 0) {
+                int cloneindex = rand.nextInt(validindexes.size());
+                Particle parent = particles.get(validindexes.get(cloneindex));
+                particles.set(invalidindexes.get(i), createParticle(parent.box, parent.pos.x, parent.pos.y, parent.getBiasAngle(), parent.getBiasScale()));
+            } else {
+                particles.set(invalidindexes.get(i), randomParticle());
+            }
+        }
+
+        recalcDistrubution();
+        //Log.v("INFO", String.format(Locale.US, "max: %.2f, std: %.2f", particleDistribution.maxdist, particleDistribution.std));
+    }
+
+    void render(Canvas canvas, Floorplan.RenderOpts opts) {
         if (boxes == null) {
             return;
         }
-        Paint paint = new Paint();
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(0.02f);
-        paint.setARGB(255, 255, 0, 0);
-        for (ParticleModel.ConvexBox box : boxes) {
-            Path p = new Path();
-            p.moveTo((float) box.points[0].x, (float) box.points[0].y);
-            for (int i = 1; i < box.points.length; i++) {
-                p.lineTo((float) box.points[i].x, (float) box.points[i].y);
+
+        if (opts.drawboxes) {
+            for (ParticleModel.ConvexBox box : boxes) {
+                Path p = new Path();
+                p.moveTo((float) box.points[0].x, (float) box.points[0].y);
+                for (int i = 1; i < box.points.length; i++) {
+                    p.lineTo((float) box.points[i].x, (float) box.points[i].y);
+                }
+                p.close();
+                canvas.drawPath(p, opts.palette.particle);
             }
-            p.close();
-            canvas.drawPath(p, paint);
         }
 
         //draw only a portion of the particles if there are many
@@ -180,7 +286,11 @@ public class ParticleModel {
         int step = (particles.size() + MAXVISIBLEPARTICLES) / MAXVISIBLEPARTICLES;
         for (int i = 0; i < particles.size(); i += step) {
             Particle particle = particles.get(i);
-            canvas.drawPoint((float) particle.pos.x, (float) particle.pos.y, paint);
+            canvas.drawPoint((float) particle.pos.x, (float) particle.pos.y, opts.palette.particle);
+        }
+
+        if (particleDistribution != null) {
+            canvas.drawCircle((float) particleDistribution.meanx, (float) particleDistribution.meany, (float) particleDistribution.std, opts.palette.particle);
         }
     }
 }

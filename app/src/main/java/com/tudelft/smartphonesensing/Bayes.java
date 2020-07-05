@@ -14,23 +14,24 @@ import java.util.stream.Collectors;
 public class Bayes {
 
     Context context;
-
+    ModelState model;
 
     List<LocationMacTable> locationMacTables = new ArrayList<>();
     List<String> usableMacs = new ArrayList<>();
 
     public Bayes(Context context) {
         this.context = context;
+        //TODO fix argument passing
+        model = MainActivity.modelState;
     }
 
     static public class LocationMacTable {
-        String location;
-
+        LocationCell location;
 
         //mac -> sampler map
         private Map<Long, GaussianSampler> table = new HashMap<>();
 
-        LocationMacTable(String location) {
+        LocationMacTable(LocationCell location) {
             this.location = location;
         }
 
@@ -118,12 +119,12 @@ public class Bayes {
         final AppDatabase db = AppDatabase.getInstance(context);
 
         locationMacTables.clear();
-        List<String> locations = db.scanDAO().getAllLocations();
-        for (String location : locations) {
-            List<Long> locMacs = db.scanDAO().getAllMacsAtLocation(location);
+        List<LocationCell> locations = db.locationCellDAO().getAllInFloorplan(model.getFloorplan().getId());
+        for (LocationCell location : locations) {
+            List<Long> locMacs = db.scanDAO().getAllMacsAtLocation(location.getId());
             LocationMacTable subtable = new LocationMacTable(location);
             for (Long mac : locMacs) {
-                List<Scan> macAppearences = db.scanDAO().getAllScansWithMacAndLocation(location, mac);
+                List<Scan> macAppearences = db.scanDAO().getAllScansWithMacAndLocation(location.getId(), mac);
                 //alphatrim here
                 macAppearences = alphatrim(macAppearences);
                 subtable.addMacData(mac, macAppearences);
@@ -195,6 +196,8 @@ public class Bayes {
         for (ScanResult scan : scanResults) {
             long curMAC = Util.macStringToLong(scan.BSSID);
             double curLevel = WifiManager.calculateSignalLevel(scan.level, 46) + normalisationGain;
+
+
 
             //P(Cell/rssj)=P(rssj/Cell)*P(Cell)/P(rssj)
             //p(rssj)=p(cell1)*p(rssj/cell1)+p(cell2)*p(rssj/cell2).....

@@ -37,23 +37,27 @@ public class CellFragment extends Fragment {
     private Button scanButton20x;
     private ProgressBar scanProgressbar;
     private GraphView rssiGraph;
+    private Button changeNameButton;
 
-    private String selectedCell = null;
+    private LocationCell selectedCell = null;
     private List<Scan> locationScans;
 
     private WifiScanner activeScan = null;
 
-    void setCell(String locid) {
-        selectedCell = locid;
+    public void setCellById(int id) {
+        setCell(AppDatabase.getInstance(getContext()).locationCellDAO().get(id));
+    }
+
+    public void setCell(LocationCell cell) {
+        selectedCell = cell;
         drawSignaldata();
     }
 
-    void drawSignaldata() {
-        //TODO should we use some global instance of the database?
-        final AppDatabase db = AppDatabase.getInstance(this.getContext());
+    private void drawSignaldata() {
+        final AppDatabase db = AppDatabase.getInstance(getContext());
 
-        locationScans = db.scanDAO().getAllScansAtLocation(selectedCell);
-        cellnameText.setText(selectedCell);
+        locationScans = db.scanDAO().getAllScansAtLocation(selectedCell.getId());
+        cellnameText.setText(selectedCell.getName());
 
         HashMap<Long, Integer> macHistogram = new HashMap<>();
         for (Scan scan : locationScans) {
@@ -70,8 +74,8 @@ public class CellFragment extends Fragment {
         if (minMacEntries == Integer.MAX_VALUE) {
             minMacEntries = 0;
         }
-        numMacsText.setText(macHistogram.size() + "");
-        numSamplesText.setText(maxMacEntries + "");
+        numMacsText.setText(String.format("%s", macHistogram.size()));
+        numSamplesText.setText(String.format("%s", maxMacEntries));
 
         rssiGraph.removeAllSeries();
         List<Map.Entry<Long, Integer>> sortedmacHistogram = macHistogram.entrySet().stream()
@@ -120,15 +124,8 @@ public class CellFragment extends Fragment {
         rssiGraph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
     }
 
-    //TODO make sensible code path for this
-    private String initialCell;
-
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        Bundle bundle = this.getArguments();
-        if (bundle != null) {
-            initialCell = bundle.get("cellName").toString();
-        }
         return inflater.inflate(R.layout.cell_fragment, container, false);
     }
 
@@ -146,7 +143,7 @@ public class CellFragment extends Fragment {
                 //TODO: Improve the normalisation technique
                 int normlevel = WifiManager.calculateSignalLevel(scanResult.level, 46);
                 //TODO: only store gaussian mean and std in DB
-                Scan result = new Scan(Util.macStringToLong(scanResult.BSSID), scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell, scanResult.timestamp);
+                Scan result = new Scan(Util.macStringToLong(scanResult.BSSID), scanResult.SSID, scanResult.level, normlevel, scanResult.frequency, selectedCell.getId(), scanResult.timestamp);
                 db.scanDAO().InsertAll(result);
                 Log.v("DB", "Added scan: " + result);
             }
@@ -211,6 +208,7 @@ public class CellFragment extends Fragment {
         scanButton20x = this.getView().findViewById(R.id.scanButton20x);
         scanProgressbar = this.getView().findViewById(R.id.scanProgressBar);
         rssiGraph = this.getView().findViewById(R.id.rssiGraph);
+        changeNameButton = this.getView().findViewById(R.id.cellChangeNameButton);
 
         scanProgressbar.setVisibility(View.INVISIBLE);
 
@@ -218,7 +216,16 @@ public class CellFragment extends Fragment {
         scanButton5x.setOnClickListener(btn -> this.scanClicked(5));
         scanButton20x.setOnClickListener(btn -> this.scanClicked(20));
 
-        //TODO move this elsewhere
-        setCell(initialCell);
+        AppDatabase db = AppDatabase.getInstance(getContext());
+
+        changeNameButton.setOnClickListener(v -> {
+            Util.showTextDialog(getContext(), "Set name of cell", selectedCell.getName(), newname -> {
+                if (newname != null) {
+                    selectedCell.setName(newname);
+                    db.locationCellDAO().updateLocationCell(selectedCell);
+                    drawSignaldata();
+                }
+            });
+        });
     }
 }
