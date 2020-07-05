@@ -40,6 +40,17 @@ public class Bayes {
             return (sampler == null ? 0 : sampler.sample(rssi));
         }
 
+        double calculateProb(long mac, double rssi) {
+            double prob = 0;
+            for (double j = rssi - 0.5; j < rssi + 0.5; j = j + 0.05) {
+                GaussianSampler sampler = table.get(mac);
+                double value = (sampler == null ? 0 : sampler.sample(j));
+                prob += j * value;
+
+            }
+            return prob;
+        }
+
         void addMacData(long mac, List<Scan> scandata) {
             table.put(mac, new GaussianSampler(scandata));
         }
@@ -78,7 +89,7 @@ public class Bayes {
                 return 0;
             }
             //TODO find better solution to deal with stddev==0 and remove magic constant
-            double roundedStd = Math.max(stddev, 0.2);
+            double roundedStd = Math.max(0.1, stddev);
             return (1 / (roundedStd * Math.sqrt(2 * Math.PI))) * Math.exp(-(rssi - mean) * (rssi - mean) / (2 * roundedStd * roundedStd));
         }
 
@@ -99,7 +110,7 @@ public class Bayes {
                     double diff = scan.getLevel() - mean;
                     leveldiffsum += diff * diff;
                 }
-                stddev = Math.sqrt(leveldiffsum / (nsamples - 1));
+                stddev = Math.sqrt(leveldiffsum / (nsamples));
             }
         }
     }
@@ -165,7 +176,7 @@ public class Bayes {
         //TODO locationlist could be empty, show a message and quit
         //initialize set of candidates with equal probabilities
         //no need to normalize yet
-        double baseprob = 1.0;
+        double baseprob = 1.0 / locationMacTables.size();
         List<cellCandidate> candidateList = locationMacTables.stream()
                 .map(l -> new cellCandidate(baseprob, l))
                 .collect(Collectors.toList());
@@ -174,23 +185,35 @@ public class Bayes {
 
         //TODO the value of this depends on the width of the expected RSSi range!!
         //it will break when a different normalisation is used than 0-10
-        final double minimalP = 1.0 / 46;
+
 
         //TODO: Find good threshold value to use
-        final double threshold = 0.7;
+        final double threshold = 0.95;
+
         //sort here and do iterations
-        Collections.sort(scanResults, (o1, o2) -> o1.level - o2.level);
+        Collections.sort(scanResults, (o1, o2) -> o2.level - o1.level);
         outerloop:
         for (ScanResult scan : scanResults) {
             long curMAC = Util.macStringToLong(scan.BSSID);
-            double curLevel = wifiManager.calculateSignalLevel(scan.level, 46) + normalisationGain;
+            double curLevel = WifiManager.calculateSignalLevel(scan.level, 46) + normalisationGain;
 
+
+
+            //P(Cell/rssj)=P(rssj/Cell)*P(Cell)/P(rssj)
+            //p(rssj)=p(cell1)*p(rssj/cell1)+p(cell2)*p(rssj/cell2).....
+            double rssj = 0;
             for (cellCandidate cand : candidateList) {
-                double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));
-                cand.probability *= sampledP;
-
+                rssj += cand.macTable.calculateProb(curMAC, curLevel) * cand.probability;
             }
-            makeSumOfProbabilitiesEqualOne(candidateList);
+            if (rssj != 0) {
+                for (cellCandidate cand : candidateList) {
+                    double sampledP = cand.macTable.calculateProb(curMAC, curLevel);
+                    cand.probability *= sampledP;
+                    cand.probability /= rssj;
+
+                }
+            }
+            //makeSumOfProbabilitiesEqualOne(candidateList);
             for (cellCandidate cand : candidateList) {
                 if (cand.probability > threshold)
                     break outerloop;
@@ -217,4 +240,5 @@ public class Bayes {
     public List<LocationMacTable> getLocationMacTables() {
         return locationMacTables;
     }
+
 }
