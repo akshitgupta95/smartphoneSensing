@@ -130,8 +130,8 @@ public class MotionTracker implements SensorEventListener {
     }
 
     private double lastStepTime = 0;
-    private final double stepCooldown = 0.3;
-    private double stepSizeMeters = 0.4;
+    private final double stepCooldown = 0.25;
+    private double stepSizeMeters = 0.48;
 
     private final double characteristicWindowtime = 3.0;
     private AccelMeasurement lastMeasurement = null;
@@ -190,7 +190,7 @@ public class MotionTracker implements SensorEventListener {
     }
 
     private double detectStepHandcraft2() {
-        final double highwindow = 0.12;
+        final double highwindow = 0.17;
         final double lowwindow = 0.12;
         int highsamples = (int) Math.round(highwindow / sampleInterval);
         int lowsamples = (int) Math.round(lowwindow / sampleInterval);
@@ -203,7 +203,7 @@ public class MotionTracker implements SensorEventListener {
 
         final double multiplier = 2.0;
         final double mincap = Double.POSITIVE_INFINITY;//not used
-        final double maxcap = 3.5;
+        final double maxcap = 3.1;
         AccelMeasurement accel = history.get(history.size() - 1);
         if (highp2p > multiplier * lowp2p && lowp2p < mincap && highp2p > maxcap && lastStepTime + stepCooldown < accel.time) {
             triggerStep(stepSizeMeters, accel);
@@ -380,9 +380,9 @@ public class MotionTracker implements SensorEventListener {
         if (history.size() == windowSize) {
             double movedist = 0;
             //movedist = detectStepFourier();
-            movedist = detectStepAvg();
+            //movedist = detectStepAvg();
             //movedist = detectStepHandcraft();
-            //movedist = detectStepHandcraft2();
+            movedist = detectStepHandcraft2();
             return movedist;
         }
         return 0;
