@@ -1,29 +1,56 @@
 apply plugin: 'com.android.application'
 
+ext.readProperty = { paramName ->
+    if (project.hasProperty(paramName)) {
+        return project.getProperties().get(paramName)
+    } else {
+        Properties properties = new Properties()
+        if (project.rootProject.file('local.properties').exists()) {
+            properties.load(project.rootProject.file('local.properties').newDataInputStream())
+        }
+        return properties.getProperty(paramName)
+    }
+}
+
 android {
     compileSdkVersion 29
     buildToolsVersion "29.0.2"
 
     defaultConfig {
         applicationId "com.tudelft.smartphonesensing"
-        minSdkVersion 24
+        minSdkVersion 23
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
 
+        missingDimensionStrategy 'version', 'calibration'
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // dp3t addition
+    signingConfigs {
+        release {
+            storeFile file('../testKeystore')
+            storePassword readProperty('keystorePassword')
+            keyAlias 'keyAlias'
+            keyPassword readProperty('keyAliasPassword')
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
         sourceCompatibility = 1.8
         targetCompatibility = 1.8
     }
+
+
 
 }
 
@@ -48,4 +75,13 @@ dependencies {
 
     implementation "androidx.room:room-runtime:$room_version"
     annotationProcessor "androidx.room:room-compiler:$room_version"
+
+    // dp3t implementation part
+    implementation 'com.squareup.retrofit2:retrofit:2.8.1'
+    implementation 'com.squareup.retrofit2:converter-gson:2.8.1'
+    implementation 'androidx.work:work-runtime:2.3.4'
+
+    // dp3t sdk part
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation project(':dp3t-sdk')
 }

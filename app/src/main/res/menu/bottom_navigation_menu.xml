@@ -17,4 +17,9 @@
         android:enabled="true"
         android:icon="@android:drawable/ic_menu_mylocation"
         android:title="Predict Location"/>
+    <item
+        android:id="@+id/navigation_tracing"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="Tracing" />
 </menu>

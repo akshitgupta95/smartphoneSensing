@@ -17,6 +17,8 @@ import androidx.fragment.app.Fragment;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 
+import org.dpppt.android.sdk.DP3T;
+import org.dpppt.android.sdk.DP3T.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +31,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
     private WifiManager wifiManager;
     private List<ScanResult> results;
     private Bayes bayes;
+    private BLEUtil bleUtil;
     private TextView normaliseTV;
     private ProgressBar progressBar;
     private float normalisationGain = 0;
@@ -43,6 +46,10 @@ public class TestFragment extends Fragment implements View.OnClickListener {
         bayes = new Bayes(getContext());
         FloatingActionButton pred = (FloatingActionButton) getView().findViewById(R.id.pred);
         pred.setOnClickListener(this);
+        // Start DP3T
+//         DP3T.start(getActivity().getApplicationContext());
+//        bleUtil = new BLEUtil(getActivity());
+//        bleUtil.discover();
         FloatingActionButton normalise = (FloatingActionButton) getView().findViewById(R.id.normalise);
         normalise.setOnClickListener(this);
         normaliseTV = (TextView) getView().findViewById(R.id.normaliseStatus);
@@ -233,9 +240,11 @@ public class TestFragment extends Fragment implements View.OnClickListener {
             // display the location
             Toast.makeText(this.getContext(), "Probability :" + best.probability, Toast.LENGTH_SHORT).show();
             TextView locationText = (TextView) getView().findViewById(R.id.text_loc);
+            String bestLocation = best.macTable.location.getName();
+            DP3T.setLocData(bestLocation);
+            locationText.setText(bestLocation);
 
-            locationText.setText(best.macTable.location.getName());
-
+            // bleUtil.advertise(best.macTable.location);
             String debugtext = "";
             for (Bayes.cellCandidate cand : candidates) {
                 debugtext += String.format(Locale.US, "%.4f %s\n", cand.probability, cand.macTable.location.getName());
