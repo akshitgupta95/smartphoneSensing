@@ -103,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
         menumap.put(R.id.navigation_manage, manageFragment);
         menumap.put(R.id.navigation_floorplan, floorplanFragment);
         menumap.put(R.id.navigation_predict, predictFragment);
-        menumap.put(R.id.naviagation_tracing, tracingFragment);
+        menumap.put(R.id.navigation_tracing, tracingFragment);
 
         setContentView(R.layout.activity_main);
         navView = findViewById(R.id.bottomNavigationView);
