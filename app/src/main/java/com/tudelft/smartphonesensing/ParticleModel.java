@@ -160,6 +160,10 @@ public class ParticleModel {
     private List<Particle> particles = new ArrayList<>();
     private double northAngleOffset = 0;
 
+    public DistributionInfo2d getParticleDistribution() {
+        return particleDistribution;
+    }
+
     void setBoxes(List<ConvexBox> boxes) {
         this.boxes = boxes;
         totalarea = boxes.stream().reduce(0d, (p, b) -> p + b.volume, Double::sum);

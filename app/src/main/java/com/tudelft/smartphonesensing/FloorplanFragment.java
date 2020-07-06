@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -15,11 +16,13 @@ import androidx.fragment.app.Fragment;
 import org.json.JSONException;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 public class FloorplanFragment extends Fragment {
     ModelState model = MainActivity.modelState;
     FloorplanView floorview;
+    TextView floorplanConvergence;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -31,6 +34,8 @@ public class FloorplanFragment extends Fragment {
     };
     private Consumer<Void> predictionUpdate = (nil) -> {
         floorview.invalidate();
+        LocationCell conv = model.getParticleConvergence();
+        floorplanConvergence.setText(conv == null ? "" : String.format(Locale.US, "Converged: %s", conv.getName()));
     };
 
     @Override
@@ -40,6 +45,7 @@ public class FloorplanFragment extends Fragment {
         Button loadButton = this.getView().findViewById(R.id.floorplanLoadButton);
         LinearLayout buttonContainer = this.getView().findViewById(R.id.floorplanButtons);
         floorview = this.getView().findViewById(R.id.floorplanView);
+        floorplanConvergence = this.getView().findViewById(R.id.floorplanConvergence);
 
         Runnable buttonsChanged = () -> {
             buttonContainer.removeAllViews();
@@ -62,6 +68,7 @@ public class FloorplanFragment extends Fragment {
             }
             editButton.setText(mode == FloorplanView.SelectionMode.EDITING ? "Done" : "Edit");
             particlesButton.setText(mode == FloorplanView.SelectionMode.PARTICLES ? "Done" : "Particles");
+            floorplanConvergence.setVisibility(mode == FloorplanView.SelectionMode.PARTICLES ? View.VISIBLE : View.INVISIBLE);
 
             model.setRunning(mode == FloorplanView.SelectionMode.PARTICLES);
             floorview.setSelectionMode(mode);
