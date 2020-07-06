@@ -1,5 +1,6 @@
 package com.tudelft.smartphonesensing;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.widget.Toast;
 
@@ -21,6 +22,8 @@ import java.util.Stack;
 public class MainActivity extends AppCompatActivity {
     //TODO do this by passing arguments instead
     static ModelState modelState = new ModelState();
+    //TODO YUK! remove!!! only used for debugging step counter atm
+    static Context context;
 
     BottomNavigationView navView;
     final ManageFragment manageFragment = new ManageFragment();
@@ -69,7 +72,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //TODO remove both of these
         modelState.setContext(this);
+        context=this;
 
         AppDatabase db = AppDatabase.getInstance(this);
         //get the last saved floor data or generate a default one

@@ -151,7 +151,7 @@ public class ParticleModel {
         }
     }
 
-    private final double biasAngleRange = Math.PI / 4;//try -22.5-+22.5 deg reported angle
+    private final double biasAngleRange = Math.PI / 3.5;//angle +- bias angle/2
     private final double biasScaleRange = 0.5;//try 0.75-1.25x reported speeds
     private final Random rand = new Random();
     private double totalarea;
