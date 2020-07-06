@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+
+    <TextView
+        android:id="@+id/home_status_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="30dp"
+        android:gravity="center"
+        android:padding="10dp"
+        tools:text="This textview displays the status of the STAR SDK on one or multiple lines." />
+
+    <Button
+        android:id="@+id/home_button_sync"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="FORCE SYNC BACKEND" />
+
+    <Button
+        android:id="@+id/home_button_clear_data"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CLEAR DATA" />
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:id="@+id/home_button_report_infected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="REPORT INFECTED" />
+
+<!--        <ProgressBar-->
+<!--            android:id="@+id/home_loading_view_exposed"-->
+<!--            android:layout_width="@dimen/loading_size_small"-->
+<!--            android:layout_height="@dimen/loading_size_small"-->
+<!--            android:layout_gravity="center"-->
+<!--            android:visibility="gone" />-->
+    </FrameLayout>
+
+
+
+</LinearLayout>

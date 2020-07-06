@@ -73,7 +73,12 @@ dependencies {
     implementation "androidx.room:room-runtime:$room_version"
     annotationProcessor "androidx.room:room-compiler:$room_version"
 
-    // dp3t
+    // dp3t implementation part
+    implementation 'com.squareup.retrofit2:retrofit:2.8.1'
+    implementation 'com.squareup.retrofit2:converter-gson:2.8.1'
+    implementation 'androidx.work:work-runtime:2.3.4'
+
+    // dp3t sdk part
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation project(':dp3t-sdk')
 }

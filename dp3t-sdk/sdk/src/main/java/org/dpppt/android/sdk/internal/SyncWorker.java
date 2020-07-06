@@ -11,12 +11,15 @@ package org.dpppt.android.sdk.internal;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteException;
-import androidx.annotation.NonNull;
-import androidx.work.*;
 
-import java.io.IOException;
-import java.security.PublicKey;
-import java.util.concurrent.TimeUnit;
+import androidx.annotation.NonNull;
+import androidx.work.Constraints;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.NetworkType;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
+import androidx.work.Worker;
+import androidx.work.WorkerParameters;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -30,6 +33,10 @@ import org.dpppt.android.sdk.internal.backend.SyncErrorState;
 import org.dpppt.android.sdk.internal.backend.proto.Exposed;
 import org.dpppt.android.sdk.internal.database.Database;
 import org.dpppt.android.sdk.internal.logger.Logger;
+
+import java.io.IOException;
+import java.security.PublicKey;
+import java.util.concurrent.TimeUnit;
 
 import static org.dpppt.android.sdk.internal.backend.BackendBucketRepository.BATCH_LENGTH;
 
@@ -135,6 +142,8 @@ public class SyncWorker extends Worker {
 		BackendBucketRepository backendBucketRepository =
 				new BackendBucketRepository(context, appConfig.getBucketBaseUrl(), bucketSignaturePublicKey);
 
+		long time = System.currentTimeMillis();
+
 		for (long batchReleaseTime = nextBatchReleaseTime;
 			 batchReleaseTime < System.currentTimeMillis();
 			 batchReleaseTime += BATCH_LENGTH) {
@@ -152,6 +161,19 @@ public class SyncWorker extends Worker {
 
 			appConfigManager.setLastLoadedBatchReleaseTime(batchReleaseTime);
 		}
+
+		long batchReleaseTime = 1593993600000l;
+		Exposed.ProtoExposedList result = backendBucketRepository.getExposees(batchReleaseTime);
+		long batchReleaseServerTime = result.getBatchReleaseTime();
+		for (Exposed.ProtoExposeeOrBuilder exposee : result.getExposedOrBuilderList()) {
+			database.addKnownCase(
+					context,
+					exposee.getKey().toByteArray(),
+					exposee.getKeyDate(),
+					batchReleaseServerTime
+			);
+		}
+
 
 		database.removeOldData();
 

@@ -20,11 +20,6 @@ import android.content.Context;
 import android.os.Build;
 import android.os.ParcelUuid;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.dpppt.android.sdk.internal.AppConfigManager;
 import org.dpppt.android.sdk.internal.BroadcastHelper;
 import org.dpppt.android.sdk.internal.crypto.CryptoModule;
@@ -32,6 +27,11 @@ import org.dpppt.android.sdk.internal.crypto.EphId;
 import org.dpppt.android.sdk.internal.database.Database;
 import org.dpppt.android.sdk.internal.database.models.Handshake;
 import org.dpppt.android.sdk.internal.logger.Logger;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.dpppt.android.sdk.DP3T.getLocData;
 import static org.dpppt.android.sdk.internal.gatt.BleServer.LOC_UUID;
@@ -152,11 +152,12 @@ public class BleClient {
 			boolean correctPayload = payload != null && payload.length == CryptoModule.EPHID_LENGTH;
 			Logger.d(TAG, "found " + deviceAddr + "; power: " + power + "; rssi: " + scanResult.getRssi() +
 					"; haspayload: " + correctPayload);
-			// Check if correct location
+			// TODO: Check if correct location
 			byte[] loc = scanResult.getScanRecord().getServiceData(new ParcelUuid(SERVICE_UUID));
+			byte[] debug = getLocData();
 			boolean correctLoc = loc != null && loc == getLocData();
 			Logger.d(TAG, "found another device at location " + loc.toString());
-			if(correctLoc) {
+			if(true) {
 				if (correctPayload) {
 					// if Android, optimize (meaning: send/read payload directly in the advertisement
 					Logger.i(TAG, "handshake with " + deviceAddr + " (servicedata payload)");

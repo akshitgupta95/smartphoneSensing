@@ -12,14 +12,14 @@ package org.dpppt.android.sdk.internal;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import java.io.IOException;
-
 import org.dpppt.android.sdk.backend.ResponseCallback;
 import org.dpppt.android.sdk.backend.models.ApplicationInfo;
 import org.dpppt.android.sdk.internal.backend.BackendReportRepository;
 import org.dpppt.android.sdk.internal.backend.DiscoveryRepository;
 import org.dpppt.android.sdk.internal.backend.models.ApplicationsList;
 import org.dpppt.android.sdk.internal.util.Json;
+
+import java.io.IOException;
 
 public class AppConfigManager {
 
@@ -41,7 +41,7 @@ public class AppConfigManager {
 	private static final BluetoothAdvertiseMode DEFAULT_BLUETOOTH_ADVERTISE_MODE = BluetoothAdvertiseMode.ADVERTISE_MODE_BALANCED;
 	private static final boolean DEFAULT_BLUETOOTH_USE_SCAN_RESPONSE_ENABLED = false;
 
-	private static final int DEFAULT_NUMBER_OF_WINDOWS_FOR_EXPOSURE = 3;
+	private static final int DEFAULT_NUMBER_OF_WINDOWS_FOR_EXPOSURE = 1; // Normally 3
 	private static final float DEFAULT_CONTACT_ATTENUATION_THRESHOLD = 73.0f;
 
 	private static final String PREFS_NAME = "dp3t_sdk_preferences";

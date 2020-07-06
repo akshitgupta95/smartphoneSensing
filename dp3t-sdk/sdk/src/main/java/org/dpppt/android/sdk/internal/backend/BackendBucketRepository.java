@@ -10,16 +10,17 @@
 package org.dpppt.android.sdk.internal.backend;
 
 import android.content.Context;
-import androidx.annotation.NonNull;
 
-import java.io.IOException;
-import java.security.PublicKey;
+import androidx.annotation.NonNull;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.dpppt.android.sdk.backend.SignatureException;
 import org.dpppt.android.sdk.backend.SignatureVerificationInterceptor;
 import org.dpppt.android.sdk.internal.backend.proto.Exposed;
+
+import java.io.IOException;
+import java.security.PublicKey;
 
 import retrofit2.Response;
 import retrofit2.Retrofit;
