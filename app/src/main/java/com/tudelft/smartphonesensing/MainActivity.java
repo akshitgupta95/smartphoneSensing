@@ -3,10 +3,12 @@ package com.tudelft.smartphonesensing;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -45,8 +47,8 @@ public class MainActivity extends AppCompatActivity {
     final CellFragment cellFragment = new CellFragment();
     final Fragment tracingFragment = new TracingFragment();
     final FragmentManager fm = getSupportFragmentManager();
-    final List<Fragment> tabbedFragments = Arrays.asList(manageFragment, predictFragment, floorplanFragment);
-    final List<Fragment> allFragments = Arrays.asList(manageFragment, predictFragment, floorplanFragment, cellFragment);
+    final List<Fragment> tabbedFragments = Arrays.asList(manageFragment, predictFragment, floorplanFragment, tracingFragment);
+    final List<Fragment> allFragments = Arrays.asList(manageFragment, predictFragment, floorplanFragment, cellFragment, tracingFragment);
     final HashMap<Integer, Fragment> menumap = new HashMap<>();
 
     Stack<Fragment> fragmentStack = new Stack<>();
