@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -8,14 +10,7 @@
     android:orientation="vertical"
     >
 
-    <ProgressBar
-        android:id="@+id/progress_loader"
-        style="@android:style/Widget.Material.ProgressBar.Horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone"
-        android:progress="0"
-        android:padding="20dp"/>
+
 
     <TextView
         android:id="@+id/text_title"
@@ -33,6 +28,8 @@
         android:text="Predicting.."
         android:textAlignment="center"
         android:textSize="60dp" />
+
+
 
     <FrameLayout
         android:layout_width="wrap_content"
@@ -70,5 +67,38 @@
         android:layout_height="134dp"
         android:layout_below="@+id/text_title"
         android:layout_marginTop="30dp" />
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/locateDebugOutput"
+        android:id="@+id/normaliseFL">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/normalise"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:foregroundGravity="center"
+            android:layout_margin="16dp"
+            app:srcCompat="@android:drawable/ic_menu_manage"
+            tools:layout_editor_absoluteX="107dp"
+            app:backgroundTint="@color/colorPrimary"
+            />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/normaliseStatus"
+        android:layout_width="381dp"
+        android:layout_height="134dp"
+        android:layout_below="@+id/locateDebugOutput"
+        android:layout_marginTop="30dp" />
+
+    <ProgressBar
+        android:id="@+id/progress_loader"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:background="@android:color/white"/>
 
 </RelativeLayout>

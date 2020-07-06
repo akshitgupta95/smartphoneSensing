@@ -16,7 +16,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="CELL"
+            android:text="Floor"
             android:textSize="40sp"
             android:padding="20dp"
             android:id="@+id/cell"/>

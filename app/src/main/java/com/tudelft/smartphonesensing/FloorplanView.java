@@ -13,23 +13,27 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
+import android.widget.Toast;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class FloorplanView extends View {
     enum SelectionMode {VIEWING, EDITING, PARTICLES}
 
     SelectionMode selectionMode = SelectionMode.VIEWING;
-    Floorplan floorplan;
-    String floorplanName;
-    ParticleModel particleModel;
+    ModelState model;
     boolean simulating = false;
     float viewportWidthMeters = 5;
     PointF viewportCenter = new PointF(0, 0);
     Floorplan.FloorEditable selectedElement = null;
     Matrix floorTransform = new Matrix();
     Matrix floorTransformInverse = new Matrix();
+    List<Runnable> buttonsListeners = new ArrayList<>();
 
     public FloorplanView(Context context) {
         super(context);
@@ -41,58 +45,89 @@ public class FloorplanView extends View {
         init();
     }
 
+    public void addButtonListener(Runnable cb) {
+        buttonsListeners.add(cb);
+    }
+
     public void setSelectionMode(SelectionMode selectionMode) {
         this.selectionMode = selectionMode;
         if (selectionMode != SelectionMode.EDITING) {
             selectedElement = null;
+            model.saveFloorplan();
         }
         if (selectionMode != SelectionMode.PARTICLES) {
             simulating = false;
         }
-        invalidate();
+        buttonsChanged();
     }
 
     public SelectionMode getSelectionMode() {
         return selectionMode;
     }
 
-    public Floorplan getFloorplan() {
-        return this.floorplan;
-    }
-
-    public String getFloorplanName() {
-        return this.floorplanName;
-    }
-
-    public ParticleModel getParticleModel() {
-        return this.particleModel;
-    }
-
-    public boolean getSimulating() {
-        return this.simulating;
-    }
-
-    public void setSimulating(boolean simulating) {
-        this.simulating = simulating;
-    }
-
-    public void setFloorplan(Floorplan floorplan, String name) {
-        this.floorplan = floorplan;
-        this.floorplanName = name;
-        selectedElement = null;
+    private void buttonsChanged() {
+        buttonsListeners.forEach(Runnable::run);
         invalidate();
     }
 
-    public void setParticleModel(ParticleModel particleModel) {
-        this.particleModel = particleModel;
+    public List<Floorplan.ElementAction> getActions() {
+        List<Floorplan.ElementAction> actions = new ArrayList<>();
+        if (this.selectionMode == SelectionMode.PARTICLES) {
+            actions.add(Floorplan.ElementAction.shortHand(() -> simulating ? "Stop" : "Simulate", () -> {
+                simulating = !simulating;
+                buttonsChanged();
+            }));
+        }
+        if (this.selectionMode == SelectionMode.EDITING) {
+            actions.add(Floorplan.ElementAction.shortHand(() -> "Add rect", this::addRectangleObstacle));
+            actions.add(Floorplan.ElementAction.shortHand(() -> "Align", model::AlignFloorAxis));
+
+
+            if (selectedElement != null) {
+                actions.add(Floorplan.ElementAction.shortHand(() -> "Remove", () -> {
+                    model.getFloorplan().removeElement(selectedElement);
+                    selectedElement = null;
+                    buttonsChanged();
+                }));
+
+                actions.addAll(selectedElement.getActions());
+
+                if (selectedElement instanceof Floorplan.FloorplanBayesCell) {
+                    Floorplan.FloorplanBayesCell cellelement = (Floorplan.FloorplanBayesCell) selectedElement;
+                    actions.add(Floorplan.ElementAction.shortHand(() -> "Cell Settings", () -> {
+                        LocationCell cell = cellelement.getCell();
+                        if (cell == null) {
+                            cell = new LocationCell();
+                            cell.setName("New cell");
+                            int cellid = (int) AppDatabase.getInstance(getContext()).locationCellDAO().insert(cell);
+                            cell.setId(cellid);
+                            cell.setFloorplanId(model.getFloorplan().getId());
+                            cellelement.setCell(cell);
+                        }
+
+                        MainActivity activity = (MainActivity) getContext();
+                        activity.cellFragment.setCell(cell);
+                        activity.setActiveFragment(activity.cellFragment, true);
+                    }));
+                }
+            }
+        }
+
+        return actions;
+    }
+
+    //TODO give this vies its own life cycle instead of depending on parents
+    public void floorplanChanged() {
+        selectedElement = null;
+        buttonsChanged();
     }
 
     void addRectangleObstacle() {
         Floorplan.RectangleObstacle el = new Floorplan.RectangleObstacle();
         el.setArea(new RectF(viewportCenter.x - 0.5f, viewportCenter.y - 0.5f, viewportCenter.x + 0.5f, viewportCenter.y + 0.5f));
-        floorplan.addElement(el);
+        model.getFloorplan().addElement(el);
         selectedElement = el;
-        invalidate();
+        buttonsChanged();
     }
 
     void viewChanged() {
@@ -106,17 +141,18 @@ public class FloorplanView extends View {
         invalidate();
     }
 
+    void changeSelection(Floorplan.FloorEditable element) {
+        selectedElement = element;
+        buttonsChanged();
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     void init() {
+        initPaints();
+        //TODO do some argument passing to get this value instead
+        model = MainActivity.modelState;
+
         FlingHandler flinger = new FlingHandler();
-
-        floorplan = new Floorplan();
-
-        try {
-            floorplan.deserialize(new JSONObject(getContext().getString(R.string.default_floorplan_json)));
-        } catch (JSONException err) {
-            //TODO toast message
-        }
 
         setOnTouchListener(new OnTouchListener() {
             int downcount = 0;
@@ -179,7 +215,7 @@ public class FloorplanView extends View {
                     if (downcount == 0) {
                         if (selectionMode == SelectionMode.EDITING) {
                             if (didmoveaction) {
-                                floorplan.elementsChanged();
+                                model.getFloorplan().elementsChanged();
                                 invalidate();
                             } else {
                                 onClick(e.getX(), e.getY());
@@ -191,14 +227,13 @@ public class FloorplanView extends View {
                 return true;
             }
         });
-
     }
 
     void onClick(float x, float y) {
         float[] point = new float[]{x, y};
         floorTransformInverse.mapPoints(point);
 
-        Floorplan.FloorEditable match = (Floorplan.FloorEditable) floorplan.getElements().stream()
+        Floorplan.FloorEditable match = (Floorplan.FloorEditable) model.getFloorplan().getElements().stream()
                 .filter(el -> (el instanceof Floorplan.FloorEditable && ((Floorplan.FloorEditable) el).hitTest(point[0], point[1])))
                 .findFirst().orElse(null);
 
@@ -207,7 +242,7 @@ public class FloorplanView extends View {
         } else {
             selectedElement = null;
         }
-        invalidate();
+        buttonsChanged();
     }
 
     class FlingHandler implements Runnable {
@@ -261,9 +296,8 @@ public class FloorplanView extends View {
         floorTransformInverse.mapPoints(pts);
         float dx = pts[2] - pts[0];
         float dy = pts[3] - pts[1];
-        if (selectionMode == SelectionMode.PARTICLES && simulating && particleModel != null) {
-            particleModel.move(-dx, -dy);
-            invalidate();
+        if (selectionMode == SelectionMode.PARTICLES && simulating && model.getParticleModel() != null) {
+            model.moveParticles(-dx, -dy);
         } else if (selectedElement != null) {
             if (!isfling) {
                 selectedElement.editMove(-dx, -dy);
@@ -282,29 +316,58 @@ public class FloorplanView extends View {
         viewChanged();
     }
 
+    Floorplan.RenderOpts renderOpts = new Floorplan.RenderOpts();
+
+    void initPaints() {
+        Floorplan.PaintPalette palette = new Floorplan.PaintPalette();
+
+        palette.background = new Paint();
+        palette.background.setARGB(255, 150, 150, 150);
+
+        palette.floor = new Paint();
+        palette.floor.setARGB(255, 255, 255, 255);
+
+        palette.lines = new Paint();
+        palette.lines.setStrokeWidth(0.05f);
+        palette.lines.setARGB(255, 0, 0, 0);
+        palette.lines.setStyle(Paint.Style.STROKE);
+
+        palette.text = new Paint();
+        palette.text.setTextSize(60f);
+        palette.text.setARGB(255, 0, 0, 0);
+        palette.text.setLinearText(true);
+        palette.text.setSubpixelText(true);
+        palette.text.setTextAlign(Paint.Align.CENTER);
+        palette.text.setStyle(Paint.Style.FILL);
+
+        palette.particle = new Paint();
+        palette.particle.setStyle(Paint.Style.STROKE);
+        palette.particle.setStrokeWidth(0.02f);
+        palette.particle.setARGB(255, 255, 0, 0);
+
+        renderOpts.palette = palette;
+        renderOpts.transform = floorTransform;
+        renderOpts.drawboxes = false;
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        Paint bg = new Paint();
-        bg.setARGB(255, 255, 128, 128);
-        canvas.drawRect(0, 0, getWidth(), getHeight(), bg);
+        renderOpts.selected = selectedElement;
+        canvas.drawRect(0, 0, getWidth(), getHeight(), renderOpts.palette.background);
 
-        //save old transforms to stack
+        //save old transforms to stack and transform to map space
         canvas.save();
         canvas.setMatrix(floorTransform);
 
         //can now do all rendering in floorplan coordinates (meters)
-        floorplan.render(canvas);
+        model.getFloorplan().render(canvas, renderOpts);
         if (selectedElement != null) {
-            Paint highlight = new Paint();
-            highlight.setStrokeWidth(0.05f);
-            highlight.setARGB(255, 255, 255, 255);
-            highlight.setStyle(Paint.Style.STROKE);
-            canvas.drawPath(selectedElement.getContour(), highlight);
+            canvas.drawPath(selectedElement.getContour(), renderOpts.palette.lines);
         }
-        if (selectionMode == SelectionMode.PARTICLES && particleModel != null) {
-            particleModel.render(canvas);
+        if (selectionMode == SelectionMode.PARTICLES && model.getParticleModel() != null) {
+            model.getParticleModel().render(canvas, renderOpts);
         }
 
         //restore old transforms

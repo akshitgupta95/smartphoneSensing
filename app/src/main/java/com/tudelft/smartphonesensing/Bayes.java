@@ -3,12 +3,9 @@ package com.tudelft.smartphonesensing;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
-import android.util.Log;
-import android.widget.Toast;
-
-import androidx.room.Room;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,19 +14,24 @@ import java.util.stream.Collectors;
 public class Bayes {
 
     Context context;
+    ModelState model;
+
     List<LocationMacTable> locationMacTables = new ArrayList<>();
     List<String> usableMacs = new ArrayList<>();
 
     public Bayes(Context context) {
         this.context = context;
+        //TODO fix argument passing
+        model = MainActivity.modelState;
     }
 
     static public class LocationMacTable {
-        String location;
+        LocationCell location;
+
         //mac -> sampler map
         private Map<Long, GaussianSampler> table = new HashMap<>();
 
-        LocationMacTable(String location) {
+        LocationMacTable(LocationCell location) {
             this.location = location;
         }
 
@@ -38,8 +40,23 @@ public class Bayes {
             return (sampler == null ? 0 : sampler.sample(rssi));
         }
 
+        double calculateProb(long mac, double rssi) {
+            double prob = 0;
+            for (double j = rssi - 0.5; j < rssi + 0.5; j = j + 0.05) {
+                GaussianSampler sampler = table.get(mac);
+                double value = (sampler == null ? 0 : sampler.sample(j));
+                prob += j * value;
+
+            }
+            return prob;
+        }
+
         void addMacData(long mac, List<Scan> scandata) {
             table.put(mac, new GaussianSampler(scandata));
+        }
+
+        public Map<Long, GaussianSampler> getTable() {
+            return table;
         }
     }
 
@@ -72,7 +89,7 @@ public class Bayes {
                 return 0;
             }
             //TODO find better solution to deal with stddev==0 and remove magic constant
-            double roundedStd = Math.max(stddev, 0.2);
+            double roundedStd = Math.max(0.1, stddev);
             return (1 / (roundedStd * Math.sqrt(2 * Math.PI))) * Math.exp(-(rssi - mean) * (rssi - mean) / (2 * roundedStd * roundedStd));
         }
 
@@ -93,7 +110,7 @@ public class Bayes {
                     double diff = scan.getLevel() - mean;
                     leveldiffsum += diff * diff;
                 }
-                stddev = Math.sqrt(leveldiffsum / (nsamples - 1));
+                stddev = Math.sqrt(leveldiffsum / (nsamples));
             }
         }
     }
@@ -102,17 +119,48 @@ public class Bayes {
         final AppDatabase db = AppDatabase.getInstance(context);
 
         locationMacTables.clear();
-        List<String> locations = db.scanDAO().getAllLocations();
-        for (String location : locations) {
-            List<Long> locMacs = db.scanDAO().getAllMacsAtLocation(location);
+        List<LocationCell> locations = db.locationCellDAO().getAllInFloorplan(model.getFloorplan().getId());
+        for (LocationCell location : locations) {
+            List<Long> locMacs = db.scanDAO().getAllMacsAtLocation(location.getId());
             LocationMacTable subtable = new LocationMacTable(location);
             for (Long mac : locMacs) {
-                List<Scan> macAppearences = db.scanDAO().getAllScansWithMacAndLocation(location, mac);
+                List<Scan> macAppearences = db.scanDAO().getAllScansWithMacAndLocation(location.getId(), mac);
+                //alphatrim here
+                macAppearences = alphatrim(macAppearences);
                 subtable.addMacData(mac, macAppearences);
             }
             locationMacTables.add(subtable);
         }
     }
+
+    private List<Scan> alphatrim(List<Scan> signal) {
+
+        int start = 1;
+        int end = 4;
+        List<Scan> result = new ArrayList<>();
+        if (signal.size() < 6) //our window size is 5
+            return signal;
+        for (int i = 2; i < signal.size() - 2; ++i) {
+            //   Pick up window elements
+            ArrayList<Scan> window = new ArrayList<>();
+            ArrayList<Scan> temp = new ArrayList<>();
+            for (int j = 0; j < 5; ++j) {
+                window.add(signal.get(i - 2 + j));
+                temp.add(signal.get(i - 2 + j));
+            }
+            Collections.sort(window, (o1, o2) -> Double.compare(o1.getLevel(), o2.getLevel()));
+
+            //   Get result - the mean value of the elements in trimmed set
+            int sum = 1;  //minimum normalised value
+            for (int j = start; j < end; ++j)
+                sum += window.get(j).getLevel();
+            Scan toAdd = temp.get(0);//
+            toAdd.setLevel(sum / 3);
+            result.add(toAdd);
+        }
+        return result;
+    }
+
 
     public static class cellCandidate {
         double probability;
@@ -124,11 +172,11 @@ public class Bayes {
         }
     }
 
-    public List<cellCandidate> predictLocation(List<ScanResult> scanResults) {
+    public List<cellCandidate> predictLocation(List<ScanResult> scanResults, float normalisationGain) {
         //TODO locationlist could be empty, show a message and quit
         //initialize set of candidates with equal probabilities
         //no need to normalize yet
-        double baseprob = 1.0;
+        double baseprob = 1.0 / locationMacTables.size();
         List<cellCandidate> candidateList = locationMacTables.stream()
                 .map(l -> new cellCandidate(baseprob, l))
                 .collect(Collectors.toList());
@@ -137,19 +185,49 @@ public class Bayes {
 
         //TODO the value of this depends on the width of the expected RSSi range!!
         //it will break when a different normalisation is used than 0-10
-        final double minimalP = 0.1;
 
+
+        //TODO: Find good threshold value to use
+        final double threshold = 0.95;
+
+        //sort here and do iterations
+        Collections.sort(scanResults, (o1, o2) -> o2.level - o1.level);
+        outerloop:
         for (ScanResult scan : scanResults) {
             long curMAC = Util.macStringToLong(scan.BSSID);
-            double curLevel = wifiManager.calculateSignalLevel(scan.level, 10);
+            double curLevel = WifiManager.calculateSignalLevel(scan.level, 46) + normalisationGain;
 
+
+
+            //P(Cell/rssj)=P(rssj/Cell)*P(Cell)/P(rssj)
+            //p(rssj)=p(cell1)*p(rssj/cell1)+p(cell2)*p(rssj/cell2).....
+            double rssj = 0;
             for (cellCandidate cand : candidateList) {
-                double sampledP = Math.max(minimalP, cand.macTable.sampleProb(curMAC, curLevel));
-                cand.probability *= sampledP;
+                rssj += cand.macTable.calculateProb(curMAC, curLevel) * cand.probability;
+            }
+            if (rssj != 0) {
+                for (cellCandidate cand : candidateList) {
+                    double sampledP = cand.macTable.calculateProb(curMAC, curLevel);
+                    cand.probability *= sampledP;
+                    cand.probability /= rssj;
+
+                }
+            }
+            //makeSumOfProbabilitiesEqualOne(candidateList);
+            for (cellCandidate cand : candidateList) {
+                if (cand.probability > threshold)
+                    break outerloop;
             }
         }
 
         //normalize probabilities so they add up to 1
+//        makeSumOfProbabilitiesEqualOne(candidateList);
+
+        candidateList.sort((a, b) -> Double.compare(b.probability, a.probability));
+        return candidateList;
+    }
+
+    private void makeSumOfProbabilitiesEqualOne(List<cellCandidate> candidateList) {
         double psum = 0;
         for (cellCandidate cand : candidateList) {
             psum += cand.probability;
@@ -157,8 +235,10 @@ public class Bayes {
         for (cellCandidate cand : candidateList) {
             cand.probability /= psum;
         }
-
-        candidateList.sort((a, b) -> Double.compare(b.probability, a.probability));
-        return candidateList;
     }
+
+    public List<LocationMacTable> getLocationMacTables() {
+        return locationMacTables;
+    }
+
 }

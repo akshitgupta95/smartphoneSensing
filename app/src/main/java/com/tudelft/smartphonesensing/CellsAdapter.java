@@ -16,7 +16,7 @@ import java.util.ArrayList;
 
 public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHolder> {
 
-    private ArrayList<String> data;
+    private ArrayList<LocationCell> data;
     private AdapterView.OnItemClickListener onItemClickListener;
 
 
@@ -34,22 +34,15 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
 
         @Override
         public void onClick(View view) {
-            Bundle bundle = new Bundle();
-            bundle.putString("cellName", textView.getText().toString());
-            Fragment fragment = new CellFragment();
-            fragment.setArguments(bundle);
-            //TODO: Bad practice, decouple fragment and activity using some other method, use viewPager
             MainActivity activity = (MainActivity) mContext;
-            activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).addToBackStack(null).commit();
-//            activity.getSupportFragmentManager().beginTransaction().hide(activity.getActiveFragment()).replace(R.id.main_container, fragment).show(fragment).addToBackStack(null).commit();
-
-            activity.setActiveFragment(fragment);
+            activity.cellFragment.setCellById((int) textView.getTag());
+            activity.setActiveFragment(activity.cellFragment, true);
             Log.i("CLICK", "RecyclerView Item Click Position");
         }
     }
 
     // Provide a suitable constructor (depends on the kind of dataset)
-    public CellsAdapter(ArrayList<String> data, AdapterView.OnItemClickListener onItemClickListener) {
+    public CellsAdapter(ArrayList<LocationCell> data, AdapterView.OnItemClickListener onItemClickListener) {
         this.data = data;
         this.onItemClickListener = onItemClickListener;
     }
@@ -71,8 +64,10 @@ public class CellsAdapter extends RecyclerView.Adapter<CellsAdapter.CellsViewHol
     public void onBindViewHolder(CellsViewHolder holder, int position) {
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
-        final String cellName = data.get(position);
+        LocationCell cell = data.get(position);
+        final String cellName = String.format("%s: %s", cell.getFloorplanId(), cell.getName());
         holder.textView.setText(cellName);
+        holder.textView.setTag(cell.getId());
     }
 
 

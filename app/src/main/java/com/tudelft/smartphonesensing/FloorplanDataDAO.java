@@ -6,6 +6,7 @@ import androidx.room.Entity;
 import androidx.room.Insert;
 import androidx.room.PrimaryKey;
 import androidx.room.Query;
+import androidx.room.Update;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,8 +22,14 @@ public interface FloorplanDataDAO {
     @Query("SELECT * FROM FloorplanData WHERE id=:id")
     FloorplanData getById(int id);
 
+    @Query("SELECT * FROM FloorplanData ORDER BY lastChanged DESC LIMIT 1")
+    FloorplanData getLastSaved();
+
     @Insert
-    void InsertAll(FloorplanData... floorplans);
+    long insert(FloorplanData floorplan);
+
+    @Update
+    void update(FloorplanData floorplan);
 
     class FloorplanMeta {
         @ColumnInfo()
@@ -43,25 +50,16 @@ public interface FloorplanDataDAO {
         @ColumnInfo()
         private String layoutJson;
 
-        Floorplan getFloorplan() {
-            Floorplan floor = new Floorplan();
-            try {
-                JSONObject obj = new JSONObject(layoutJson);
-                floor.deserialize(obj);
-            } catch (JSONException err) {
-                //TODO add toast message error and remove from database?
-                return null;
-            }
-            return floor;
-        }
+        @ColumnInfo()
+        private long lastChanged;
 
-        void setFloorplan(Floorplan floor, String name) {
-            try {
-                layoutJson = floor.serialize().toString();
-                this.name = name;
-            } catch (JSONException err) {
-                //TODO add toast message+clean up data
-            }
+        static FloorplanData fromFloorplan(Floorplan floor) throws JSONException {
+            FloorplanData data = new FloorplanData();
+            data.setLayoutJson(floor.serialize().toString());
+            data.setName(floor.getName());
+            data.setId(floor.getId());
+            data.setLastChanged(System.currentTimeMillis());
+            return data;
         }
 
         public String getLayoutJson() {
@@ -86,6 +84,14 @@ public interface FloorplanDataDAO {
 
         public void setName(String name) {
             this.name = name;
+        }
+
+        public long getLastChanged() {
+            return lastChanged;
+        }
+
+        public void setLastChanged(long time) {
+            lastChanged = time;
         }
     }
 }

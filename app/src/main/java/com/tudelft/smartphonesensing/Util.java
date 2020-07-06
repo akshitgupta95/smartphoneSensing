@@ -6,6 +6,8 @@ import android.content.DialogInterface;
 import android.text.InputType;
 import android.widget.EditText;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class Util {
@@ -113,6 +115,22 @@ public class Util {
             onclose.accept(which);
         });
         b.show();
+    }
+
+    public static class EventSource<T> {
+        List<Consumer<T>> listeners = new ArrayList<>();
+
+        void listen(Consumer<T> listener) {
+            listeners.add(listener);
+        }
+
+        void remove(Consumer<T> listener) {
+            listeners.remove(listener);
+        }
+
+        void trigger(T value) {
+            listeners.forEach(l -> l.accept(value));
+        }
     }
 }
 
