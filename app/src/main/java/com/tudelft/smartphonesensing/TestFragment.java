@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class TestFragment extends Fragment implements View.OnClickListener {
 
@@ -139,7 +138,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
                 if (!normalised)
                     normalised = checkNormalise;
                 if (checkNormalise) {
-                    Toast.makeText(getContext(), "Normalisation was done using location: " + locationMacTable.location, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "Normalisation was done using location: " + locationMacTable.location.getName(), Toast.LENGTH_SHORT).show();
 
                 }
             }
@@ -148,9 +147,9 @@ public class TestFragment extends Fragment implements View.OnClickListener {
         if (normalised) {
             float Gsum = 0;
             for (int g : G) {
-                Gsum += g;
+                Gsum += g;;
             }
-            float Gmean = Gsum / G.size();
+            float Gmean = -1*Gsum / G.size();
             normalisationGain = Gmean;
             Toast.makeText(getContext(), "Normalisation Gain: " + Gmean, Toast.LENGTH_SHORT).show();
 
