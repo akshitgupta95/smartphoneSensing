@@ -36,7 +36,6 @@ public class MainActivity extends AppCompatActivity {
     public Fragment getActiveFragment() {
         return getSupportFragmentManager()
                 .findFragmentById(R.id.main_container);
-//        return active;
     }
 
     public void setActiveFragment(Fragment active) {
@@ -66,11 +65,6 @@ public class MainActivity extends AppCompatActivity {
         PublicKey publicKey = SignatureUtil.getPublicKeyFromBase64OrThrow("LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0NCk1Ga3dFd1lIS29aSXpqMENBUVlJS29aSXpqMERBUWNEUWdBRTUxb0ZVUTVCTXlXdGRuUEkwUHVZc3QyNXE2dXQNCklRMTU3Yy9uYXN1TkozbEN2T0lFU0lDZFhwT1FUUUdWNisxWDh1WStOWmZ5WlFTR090R3hxTFdOcmc9PQ0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tDQo=");
         String url = "https://app-covid-4254.herokuapp.com/";
         DP3T.init(context, new ApplicationInfo("org.dpppt.demo", url, url), publicKey);
-
-//        CertificatePinner certificatePinner = new CertificatePinner.Builder()
-//                .add("https://app-covid-4254.herokuapp.com/", "sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=")
-//                .build();
-//        DP3T.setCertificatePinner(certificatePinner);
 
         setMatchingParameters(context, 73.0f, 1);
     }

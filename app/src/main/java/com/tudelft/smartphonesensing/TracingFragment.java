@@ -83,7 +83,7 @@ public class TracingFragment extends Fragment {
     private static final String REGEX_VALIDITY_AUTH_CODE = "\\w+";
     private static final int EXPOSED_MIN_DATE_DIFF = -21;
 
-//    Parametrs fragment
+    // This is part of the parameters fragment
 
     private static final int MIN_INTERVAL_SCANNING_SECONDS = 30;
     private static final int MAX_INTERVAL_SCANNING_SECONDS = 900;
@@ -123,7 +123,7 @@ public class TracingFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_home, container, false);
+        return inflater.inflate(R.layout.tracing_fragment, container, false);
 
 
     }
