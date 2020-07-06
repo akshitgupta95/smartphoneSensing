@@ -6,6 +6,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import org.json.JSONException;
+import org.locationtech.jts.geom.Coordinate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,7 @@ public class ModelState {
     private boolean running = false;
     private MotionTracker motionTracker;
     private Context context = null;
+    private LocationCell particleConvergence = null;
 
     public final Util.EventSource<Floorplan> floorplanChange = new Util.EventSource<>();
     public final Util.EventSource<Floorplan> particlemodelChange = new Util.EventSource<>();
@@ -35,6 +37,10 @@ public class ModelState {
                 moveParticles(dx, dy);
             }
         });
+    }
+
+    public LocationCell getParticleConvergence() {
+        return particleConvergence;
     }
 
     public void selectFloorMenu() {
@@ -83,7 +89,29 @@ public class ModelState {
     }
 
     public void moveParticles(double dx, double dy) {
+        final double convergenceStd = 1.0;
         particleModel.move(dx, dy);
+        ParticleModel.DistributionInfo2d distr = particleModel.getParticleDistribution();
+        if (distr.std < convergenceStd) {
+            Coordinate center = new Coordinate(distr.meanx, distr.meany);
+            LocationCell best = null;
+            double bestdist = Double.POSITIVE_INFINITY;
+            for (Floorplan.FloorElement el : floorplan.getElements()) {
+                if (el instanceof Floorplan.FloorplanBayesCell) {
+                    Floorplan.FloorplanBayesCell bayescell = (Floorplan.FloorplanBayesCell) el;
+                    if (bayescell.getCell() != null && !bayescell.getCell().getName().isEmpty()) {
+                        double dist = el.getCenterPoint().distance(center);
+                        if (dist < bestdist) {
+                            bestdist = dist;
+                            best = bayescell.getCell();
+                        }
+                    }
+                }
+            }
+            particleConvergence = best;
+        } else {
+            particleConvergence = null;
+        }
         predictionUpdate.trigger(null);
     }
 

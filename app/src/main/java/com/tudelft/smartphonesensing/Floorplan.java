@@ -382,6 +382,8 @@ public class Floorplan {
         void renderBackground(Canvas c, RenderOpts opts);
 
         void renderForeground(Canvas c, RenderOpts opts);
+
+        Coordinate getCenterPoint();
     }
 
     public static class PolygonObstacle implements FloorElement, FloorObstacle {
@@ -401,6 +403,17 @@ public class Floorplan {
             closed[closed.length - 1] = vertices[0];
             LinearRing ring = fact.createLinearRing(closed);
             return new Polygon(ring, null, fact);
+        }
+
+        @Override
+        public Coordinate getCenterPoint() {
+            double sumx = 0;
+            double sumy = 0;
+            for (Coordinate c : vertices) {
+                sumx += c.x;
+                sumy += c.y;
+            }
+            return new Coordinate(sumx / vertices.length, sumy / vertices.length);
         }
 
         @Override
@@ -456,6 +469,11 @@ public class Floorplan {
 
         public void setArea(RectF area) {
             this.area = area;
+        }
+
+        @Override
+        public Coordinate getCenterPoint() {
+            return new Coordinate(area.centerX(), area.centerY());
         }
 
         @Override
