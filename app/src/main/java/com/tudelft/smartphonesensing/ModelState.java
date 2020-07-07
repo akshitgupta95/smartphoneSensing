@@ -100,6 +100,13 @@ public class ModelState {
                 if (el instanceof Floorplan.FloorplanBayesCell) {
                     Floorplan.FloorplanBayesCell bayescell = (Floorplan.FloorplanBayesCell) el;
                     if (bayescell.getCell() != null && !bayescell.getCell().getName().isEmpty()) {
+                        if (el instanceof Floorplan.FloorEditable) {
+                            //TODO using a ui api here for physical hit testing, detach these at some point
+                            if (((Floorplan.FloorEditable) el).hitTest((float) distr.meanx, (float) distr.meany)) {
+                                best = bayescell.getCell();
+                                break;
+                            }
+                        }
                         double dist = el.getCenterPoint().distance(center);
                         if (dist < bestdist) {
                             bestdist = dist;
