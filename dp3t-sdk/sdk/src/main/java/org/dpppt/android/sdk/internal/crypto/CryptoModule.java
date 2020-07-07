@@ -13,22 +13,9 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Pair;
+
 import androidx.security.crypto.EncryptedSharedPreferences;
 import androidx.security.crypto.MasterKeys;
-
-import java.io.IOException;
-import java.security.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.Mac;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.dpppt.android.sdk.backend.models.ExposeeAuthMethod;
 import org.dpppt.android.sdk.backend.models.ExposeeAuthMethodJson;
@@ -36,6 +23,26 @@ import org.dpppt.android.sdk.internal.backend.models.ExposeeRequest;
 import org.dpppt.android.sdk.internal.database.models.Contact;
 import org.dpppt.android.sdk.internal.util.DayDate;
 import org.dpppt.android.sdk.internal.util.Json;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import static org.dpppt.android.sdk.internal.util.Base64Util.toBase64;
 
@@ -45,7 +52,9 @@ public class CryptoModule {
 
 	public static final int NUMBER_OF_DAYS_TO_KEEP_DATA = 21;
 	public static final int NUMBER_OF_DAYS_TO_KEEP_EXPOSED_DAYS = 10;
-	private static final int NUMBER_OF_EPOCHS_PER_DAY = 24 * 4;
+//	private static final int NUMBER_OF_EPOCHS_PER_DAY = 24 * 4;
+	// We change this too to speed up the process --> every minute an epoch
+	private static final int NUMBER_OF_EPOCHS_PER_DAY = 24 * 60;
 	public static final int MILLISECONDS_PER_EPOCH = 24 * 60 * 60 * 1000 / NUMBER_OF_EPOCHS_PER_DAY;
 	private static final byte[] BROADCAST_KEY = "broadcast key".getBytes();
 

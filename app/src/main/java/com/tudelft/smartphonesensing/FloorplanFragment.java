@@ -13,6 +13,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import org.dpppt.android.sdk.DP3T;
 import org.json.JSONException;
 
 import java.util.List;
@@ -36,6 +37,8 @@ public class FloorplanFragment extends Fragment {
         floorview.invalidate();
         LocationCell conv = model.getParticleConvergence();
         floorplanConvergence.setText(conv == null ? "" : String.format(Locale.US, "Converged: %s", conv.getName()));
+        // Update location
+        if( conv != null) DP3T.setLocData(conv.getName(),getContext());
     };
 
     @Override

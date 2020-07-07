@@ -240,7 +240,7 @@ public class TestFragment extends Fragment implements View.OnClickListener {
             Toast.makeText(this.getContext(), "Probability :" + best.probability, Toast.LENGTH_SHORT).show();
             TextView locationText = (TextView) getView().findViewById(R.id.text_loc);
             String bestLocation = best.macTable.location.getName();
-            DP3T.setLocData(bestLocation);
+            DP3T.setLocData(bestLocation, getContext());
             locationText.setText(bestLocation);
 
             // bleUtil.advertise(best.macTable.location);
