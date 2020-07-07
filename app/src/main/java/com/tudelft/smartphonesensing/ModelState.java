@@ -21,6 +21,8 @@ public class ModelState {
     private Context context = null;
     private LocationCell particleConvergence = null;
 
+    private boolean hasConvergence = false;
+
     public final Util.EventSource<Floorplan> floorplanChange = new Util.EventSource<>();
     public final Util.EventSource<Floorplan> particlemodelChange = new Util.EventSource<>();
     public final Util.EventSource<Void> predictionUpdate = new Util.EventSource<>();
@@ -92,7 +94,11 @@ public class ModelState {
         final double convergenceStd = 1.0;
         particleModel.move(dx, dy);
         ParticleModel.DistributionInfo2d distr = particleModel.getParticleDistribution();
-        if (distr.std < convergenceStd) {
+        if (distr.std > convergenceStd * 2) {
+            hasConvergence = false;
+        }
+        if (hasConvergence || distr.std < convergenceStd) {
+            hasConvergence = true;
             Coordinate center = new Coordinate(distr.meanx, distr.meany);
             LocationCell best = null;
             double bestdist = Double.POSITIVE_INFINITY;
