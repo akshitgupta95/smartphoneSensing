@@ -77,13 +77,17 @@ public class FloorplanView extends View {
                 simulating = !simulating;
                 buttonsChanged();
             }));
+            actions.add(Floorplan.ElementAction.shortHand(() -> "triangles", () -> {
+                renderOpts.drawboxes = !renderOpts.drawboxes;
+                buttonsChanged();
+            }));
         }
         if (this.selectionMode == SelectionMode.EDITING) {
-            actions.add(Floorplan.ElementAction.shortHand(() -> "Add rect", this::addRectangleObstacle));
-            actions.add(Floorplan.ElementAction.shortHand(() -> "Align", model::AlignFloorAxis));
-
-
-            if (selectedElement != null) {
+            if (selectedElement == null) {
+                actions.add(Floorplan.ElementAction.shortHand(() -> "Align", model::AlignFloorAxis));
+                actions.add(Floorplan.ElementAction.shortHand(() -> "Add rect", this::addRectangleObstacle));
+                actions.add(Floorplan.ElementAction.shortHand(() -> "Furniture", this::addRectangleBlocking));
+            } else {
                 actions.add(Floorplan.ElementAction.shortHand(() -> "Remove", () -> {
                     model.getFloorplan().removeElement(selectedElement);
                     selectedElement = null;
@@ -124,6 +128,14 @@ public class FloorplanView extends View {
 
     void addRectangleObstacle() {
         Floorplan.RectangleObstacle el = new Floorplan.RectangleObstacle();
+        el.setArea(new RectF(viewportCenter.x - 0.5f, viewportCenter.y - 0.5f, viewportCenter.x + 0.5f, viewportCenter.y + 0.5f));
+        model.getFloorplan().addElement(el);
+        selectedElement = el;
+        buttonsChanged();
+    }
+
+    void addRectangleBlocking() {
+        Floorplan.RectangleBlocking el = new Floorplan.RectangleBlocking();
         el.setArea(new RectF(viewportCenter.x - 0.5f, viewportCenter.y - 0.5f, viewportCenter.x + 0.5f, viewportCenter.y + 0.5f));
         model.getFloorplan().addElement(el);
         selectedElement = el;
@@ -233,8 +245,11 @@ public class FloorplanView extends View {
         float[] point = new float[]{x, y};
         floorTransformInverse.mapPoints(point);
 
-        Floorplan.FloorEditable match = (Floorplan.FloorEditable) model.getFloorplan().getElements().stream()
-                .filter(el -> (el instanceof Floorplan.FloorEditable && ((Floorplan.FloorEditable) el).hitTest(point[0], point[1])))
+        Floorplan.FloorEditable match = model.getFloorplan().getElements().stream()
+                .filter(el -> (el instanceof Floorplan.FloorEditable))
+                .map(el -> (Floorplan.FloorEditable) el)
+                .sorted((a, b) -> b.getMergeGroup() - a.getMergeGroup())
+                .filter(el -> el.hitTest(point[0], point[1]))
                 .findFirst().orElse(null);
 
         if (match != null) {
@@ -326,6 +341,9 @@ public class FloorplanView extends View {
 
         palette.floor = new Paint();
         palette.floor.setARGB(255, 255, 255, 255);
+
+        palette.furniture = new Paint();
+        palette.furniture.setARGB(255, 220, 220, 220);
 
         palette.lines = new Paint();
         palette.lines.setStrokeWidth(0.05f);

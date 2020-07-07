@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
 import mxb.jts.triangulate.EarClipper;
 
 public class Floorplan {
-    private List<FloorElement> elements = new ArrayList<>();
+    private ArrayList<FloorElement> elements = new ArrayList<>();
     private double northAngleOffset = 0;
     private int id;
     private String name;
@@ -47,6 +47,10 @@ public class Floorplan {
     static final String ELEMENT_POLYGON = "poly";
     static final String ELEMENT_RECTANGLE = "rectangle";
     static final String ELEMENT_FLOORPLAN = "floorplan";
+    static final String ELEMENT_RECTANGLE_BLOCKING = "rectangle_blocking";
+
+    static final int MERGEGROUP_FLOOR = 0;
+    static final int MERGEGROUP_FURNITURE = 1;
 
     static Floorplan load(AppDatabase db, FloorplanDataDAO.FloorplanData data) throws JSONException {
         Floorplan floor = new Floorplan(data.getId(), data.getName());
@@ -83,9 +87,16 @@ public class Floorplan {
 
     public List<ParticleModel.ConvexBox> getWalkable() {
         Geometry combined = new MultiPolygon(new Polygon[0], new GeometryFactory());
-        for (FloorElement el : elements) {
-            if (el instanceof FloorObstacle) {
-                combined = combined.union(((FloorObstacle) el).getGeometry());
+        List<FloorObstacle> ordered = elements.stream()
+                .filter(a -> a instanceof FloorObstacle)
+                .sorted((a, b) -> a.getMergeGroup() - b.getMergeGroup())
+                .map(a -> (FloorObstacle) a)
+                .collect(Collectors.toList());
+        for (FloorObstacle el : ordered) {
+            if (el.isWalkable()) {
+                combined = combined.union(el.getGeometry());
+            } else {
+                combined = combined.difference(el.getGeometry());
             }
         }
 
@@ -215,7 +226,7 @@ public class Floorplan {
         return triangles;
     }
 
-    public void setElements(List<FloorElement> elements) {
+    public void setElements(ArrayList<FloorElement> elements) {
         this.elements = elements;
         elementsChanged();
     }
@@ -251,7 +262,7 @@ public class Floorplan {
     }
 
     public void deserialize(JSONObject obj, List<LocationCell> cells) throws JSONException {
-        List<FloorElement> els = new ArrayList<>();
+        ArrayList<FloorElement> els = new ArrayList<>();
         JSONArray children = obj.getJSONArray("children");
         for (int i = 0; i < children.length(); i++) {
             JSONObject child = children.getJSONObject(i);
@@ -265,6 +276,9 @@ public class Floorplan {
                     break;
                 case ELEMENT_RECTANGLE:
                     newel = new RectangleObstacle();
+                    break;
+                case ELEMENT_RECTANGLE_BLOCKING:
+                    newel = new RectangleBlocking();
                     break;
                 default:
                     throw new JSONException(String.format("Unknown obstacle type: %s", child.getString("type")));
@@ -355,6 +369,8 @@ public class Floorplan {
 
     public interface FloorObstacle {
         Polygon getGeometry();
+
+        boolean isWalkable();
     }
 
     public interface FloorElement {
@@ -384,6 +400,8 @@ public class Floorplan {
         void renderForeground(Canvas c, RenderOpts opts);
 
         Coordinate getCenterPoint();
+
+        int getMergeGroup();
     }
 
     public static class PolygonObstacle implements FloorElement, FloorObstacle {
@@ -395,6 +413,16 @@ public class Floorplan {
 
         void setVertices(Coordinate[] vertices) {
             this.vertices = vertices;
+        }
+
+        @Override
+        public boolean isWalkable() {
+            return true;
+        }
+
+        @Override
+        public int getMergeGroup() {
+            return MERGEGROUP_FLOOR;
         }
 
         public Polygon getGeometry() {
@@ -459,9 +487,86 @@ public class Floorplan {
         }
     }
 
-    public static class RectangleObstacle implements FloorElement, FloorObstacle, FloorEditable, FloorplanBayesCell {
-        RectF area = new RectF();
+    public static class RectangleBlocking extends RectangleElement {
+        @Override
+        public JSONObject serialize() throws JSONException {
+            JSONObject ret = super.serialize();
+            ret.put("type", ELEMENT_RECTANGLE_BLOCKING);
+            return ret;
+        }
+
+        @Override
+        public void renderBackground(Canvas c, RenderOpts opts) {
+            c.drawRect(area, opts.palette.furniture);
+        }
+
+        @Override
+        public boolean isWalkable() {
+            return false;
+        }
+
+        @Override
+        public int getMergeGroup() {
+            return MERGEGROUP_FURNITURE;
+        }
+    }
+
+    public static class RectangleObstacle extends RectangleElement implements FloorplanBayesCell {
         LocationCell cell = null;
+
+        @Override
+        public JSONObject serialize() throws JSONException {
+            JSONObject props = super.serialize();
+            props.put("type", ELEMENT_RECTANGLE);
+            props.put("cellid", (cell == null ? -1 : cell.getId()));
+            return props;
+        }
+
+        @Override
+        public void deserialize(JSONObject props, List<LocationCell> cells) throws JSONException {
+            super.deserialize(props, cells);
+            int celid = props.getInt("cellid");
+            cell = cells.stream().filter(c -> c.getId() == celid).findFirst().orElse(null);
+        }
+
+        @Override
+        public LocationCell getCell() {
+            return cell;
+        }
+
+        @Override
+        public void setCell(LocationCell loc) {
+            cell = loc;
+        }
+
+        @Override
+        public void renderBackground(Canvas c, RenderOpts opts) {
+            c.drawRect(area, opts.palette.floor);
+        }
+
+        @Override
+        public void renderForeground(Canvas c, RenderOpts opts) {
+            if (cell != null) {
+                String text = cell.getName();
+                renderForegroundText(c, opts, text);
+            } else {
+                super.renderForeground(c, opts);
+            }
+        }
+
+        @Override
+        public boolean isWalkable() {
+            return true;
+        }
+
+        @Override
+        public int getMergeGroup() {
+            return MERGEGROUP_FLOOR;
+        }
+    }
+
+    public static abstract class RectangleElement implements FloorElement, FloorObstacle, FloorEditable {
+        RectF area = new RectF();
 
         public RectF getArea() {
             return area;
@@ -499,8 +604,6 @@ public class Floorplan {
             props.put("top", area.top);
             props.put("right", area.right);
             props.put("bottom", area.bottom);
-            props.put("type", ELEMENT_RECTANGLE);
-            props.put("cellid", (cell == null ? -1 : cell.getId()));
             return props;
         }
 
@@ -510,8 +613,6 @@ public class Floorplan {
             area.top = (float) props.getDouble("top");
             area.right = (float) props.getDouble("right");
             area.bottom = (float) props.getDouble("bottom");
-            int celid = props.getInt("cellid");
-            cell = cells.stream().filter(c -> c.getId() == celid).findFirst().orElse(null);
         }
 
         @Override
@@ -519,21 +620,20 @@ public class Floorplan {
             c.drawRect(area, opts.palette.floor);
         }
 
+        void renderForegroundText(Canvas c, RenderOpts opts, String text) {
+            float[] center = new float[]{area.centerX(), area.centerY()};
+            opts.transform.mapPoints(center);
+            c.save();
+            c.setMatrix(new Matrix());
+            c.drawText(text, center[0], center[1], opts.palette.text);
+            c.restore();
+        }
+
         @Override
         public void renderForeground(Canvas c, RenderOpts opts) {
-            String text = null;
             if (opts.selected == this) {
-                text = String.format(Locale.US, "%.1fx%.1f m", area.width(), area.height());
-            } else if (cell != null) {
-                text = cell.getName();
-            }
-            if (text != null) {
-                float[] center = new float[]{area.centerX(), area.centerY()};
-                opts.transform.mapPoints(center);
-                c.save();
-                c.setMatrix(new Matrix());
-                c.drawText(text, center[0], center[1], opts.palette.text);
-                c.restore();
+                String text = String.format(Locale.US, "%.1fx%.1f m", area.width(), area.height());
+                renderForegroundText(c, opts, text);
             }
         }
 
@@ -572,20 +672,12 @@ public class Floorplan {
             return p;
         }
 
-        @Override
-        public LocationCell getCell() {
-            return cell;
-        }
-
-        @Override
-        public void setCell(LocationCell loc) {
-            cell = loc;
-        }
     }
 
     public static class PaintPalette {
         public Paint background;
         public Paint floor;
+        public Paint furniture;
         public Paint lines;
         public Paint text;
         public Paint particle;
