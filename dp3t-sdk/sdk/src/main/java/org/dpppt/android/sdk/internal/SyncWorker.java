@@ -142,8 +142,7 @@ public class SyncWorker extends Worker {
 		BackendBucketRepository backendBucketRepository =
 				new BackendBucketRepository(context, appConfig.getBucketBaseUrl(), bucketSignaturePublicKey);
 
-		long time = System.currentTimeMillis();
-
+		// Make sure that you always try updating
 		for (long batchReleaseTime = nextBatchReleaseTime;
 			 batchReleaseTime < System.currentTimeMillis();
 			 batchReleaseTime += BATCH_LENGTH) {
@@ -161,19 +160,6 @@ public class SyncWorker extends Worker {
 
 			appConfigManager.setLastLoadedBatchReleaseTime(batchReleaseTime);
 		}
-
-		long batchReleaseTime = 1593993600000l;
-		Exposed.ProtoExposedList result = backendBucketRepository.getExposees(batchReleaseTime);
-		long batchReleaseServerTime = result.getBatchReleaseTime();
-		for (Exposed.ProtoExposeeOrBuilder exposee : result.getExposedOrBuilderList()) {
-			database.addKnownCase(
-					context,
-					exposee.getKey().toByteArray(),
-					exposee.getKeyDate(),
-					batchReleaseServerTime
-			);
-		}
-
 
 		database.removeOldData();
 
