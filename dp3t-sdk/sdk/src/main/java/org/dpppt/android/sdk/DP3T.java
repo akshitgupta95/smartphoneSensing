@@ -13,15 +13,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.sqlite.SQLiteException;
+
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
-
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
 
 import org.dpppt.android.sdk.backend.ResponseCallback;
 import org.dpppt.android.sdk.backend.SignatureException;
@@ -43,6 +37,13 @@ import org.dpppt.android.sdk.internal.database.models.ExposureDay;
 import org.dpppt.android.sdk.internal.logger.Logger;
 import org.dpppt.android.sdk.internal.util.DayDate;
 import org.dpppt.android.sdk.internal.util.ProcessUtil;
+
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
 
 import okhttp3.CertificatePinner;
 
@@ -263,9 +264,14 @@ public class DP3T {
 		return locData;
 	}
 
-	// DP3T set location data
-	public static void setLocData(String locationTag) {
+	// DP3T set location data --> TODO: check if changed else ignore
+	public static void setLocData(String locationTag, Context context) {
+		AppConfigManager appConfigManager = AppConfigManager.getInstance(context);
+//		if(!LOC.equals(locationTag)) {
+		appConfigManager.setAdvertisingEnabled(false);
 		LOC = locationTag;
+		appConfigManager.setAdvertisingEnabled(true);
+//		}
 	}
 
 }

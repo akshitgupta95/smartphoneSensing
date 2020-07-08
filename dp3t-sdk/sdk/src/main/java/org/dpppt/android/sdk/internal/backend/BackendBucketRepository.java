@@ -28,7 +28,10 @@ import retrofit2.converter.protobuf.ProtoConverterFactory;
 
 public class BackendBucketRepository implements Repository {
 
-	public static long BATCH_LENGTH = 2 * 60 * 60 * 1000L;
+	// We change this for demo purposes
+//	public static long BATCH_LENGTH = 2 * 60 * 60 * 1000L;
+
+	public static long BATCH_LENGTH = 60 * 1000L;
 
 	private BucketService bucketService;
 

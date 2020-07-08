@@ -29,6 +29,7 @@ import org.dpppt.android.sdk.internal.database.models.Handshake;
 import org.dpppt.android.sdk.internal.logger.Logger;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -153,11 +154,11 @@ public class BleClient {
 			Logger.d(TAG, "found " + deviceAddr + "; power: " + power + "; rssi: " + scanResult.getRssi() +
 					"; haspayload: " + correctPayload);
 			// TODO: Check if correct location
-			byte[] loc = scanResult.getScanRecord().getServiceData(new ParcelUuid(SERVICE_UUID));
+			byte[] loc = scanResult.getScanRecord().getServiceData(new ParcelUuid(LOC_UUID));
 			byte[] debug = getLocData();
-			boolean correctLoc = loc != null && loc == getLocData();
+			boolean correctLoc = loc != null && Arrays.equals(loc,getLocData());
 			Logger.d(TAG, "found another device at location " + loc.toString());
-			if(true) {
+			if(correctLoc) {
 				if (correctPayload) {
 					// if Android, optimize (meaning: send/read payload directly in the advertisement
 					Logger.i(TAG, "handshake with " + deviceAddr + " (servicedata payload)");
