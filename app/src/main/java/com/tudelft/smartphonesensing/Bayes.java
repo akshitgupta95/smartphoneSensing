@@ -89,7 +89,7 @@ public class Bayes {
                 return 0;
             }
             //TODO find better solution to deal with stddev==0 and remove magic constant
-            double roundedStd = Math.max(0.1, stddev);
+            double roundedStd = Math.max(3, stddev);
             return (1 / (roundedStd * Math.sqrt(2 * Math.PI))) * Math.exp(-(rssi - mean) * (rssi - mean) / (2 * roundedStd * roundedStd));
         }
 
@@ -215,8 +215,8 @@ public class Bayes {
             }
             //makeSumOfProbabilitiesEqualOne(candidateList);
             for (cellCandidate cand : candidateList) {
-                if (cand.probability > threshold)
-                    break outerloop;
+//                if (cand.probability > threshold)
+//                    break outerloop;
             }
         }
 

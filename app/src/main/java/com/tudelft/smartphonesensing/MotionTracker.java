@@ -12,12 +12,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.jtransforms.fft.DoubleFFT_1D;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.WebSocket;
-import okhttp3.WebSocketListener;
-
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -28,6 +22,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
 
 import static android.content.Context.SENSOR_SERVICE;
 
@@ -131,7 +131,7 @@ public class MotionTracker implements SensorEventListener {
 
     private double lastStepTime = 0;
     private final double stepCooldown = 0.25;
-    private double stepSizeMeters = 0.48;
+    private double stepSizeMeters = 0.33;
 
     private final double characteristicWindowtime = 3.0;
     private AccelMeasurement lastMeasurement = null;
